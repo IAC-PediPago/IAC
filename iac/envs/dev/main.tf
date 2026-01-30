@@ -31,3 +31,8 @@ module "edge" {
   acm_certificate_arn = ""
 }
 
+module "dynamodb_tables" {
+  source      = "../../modules/data/dynamodb_tables"
+  name_prefix = local.name_prefix
+  tags        = var.tags
+}
