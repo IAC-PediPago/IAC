@@ -33,3 +33,35 @@ output "cognito_app_client_id" {
 output "cloudfront_domain_name" {
   value = module.edge.cloudfront_domain_name
 }
+
+output "orders_table_name" {
+  value = module.dynamodb_tables.orders_table_name
+}
+
+output "payments_table_name" {
+  value = module.dynamodb_tables.payments_table_name
+}
+
+output "products_table_name" {
+  value = module.dynamodb_tables.products_table_name
+}
+
+output "sns_topic_arn" {
+  value = module.messaging.sns_topic_arn
+}
+
+output "notifications_queue_arn" {
+  value = module.messaging.notifications_queue_arn
+}
+
+output "inventory_queue_arn" {
+  value = module.messaging.inventory_queue_arn
+}
+
+output "notifications_dlq_arn" {
+  value = module.messaging.notifications_dlq_arn
+}
+
+output "inventory_dlq_arn" {
+  value = module.messaging.inventory_dlq_arn
+}
