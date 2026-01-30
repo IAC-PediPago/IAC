@@ -36,3 +36,9 @@ module "dynamodb_tables" {
   name_prefix = local.name_prefix
   tags        = var.tags
 }
+
+module "messaging" {
+  source      = "../../modules/messaging/sns_sqs"
+  name_prefix = local.name_prefix
+  tags        = var.tags
+}
