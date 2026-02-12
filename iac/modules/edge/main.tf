@@ -61,8 +61,41 @@ data "aws_cloudfront_cache_policy" "caching_disabled" {
   name = "Managed-CachingDisabled"
 }
 
-data "aws_cloudfront_origin_request_policy" "all_viewer" {
-  name = "Managed-AllViewer"
+# IMPORTANT: Evita reenviar el Host header al origin (API Gateway),
+# porque si CloudFront manda Host=dxxxxx.cloudfront.net, API GW responde 403 ForbiddenException.
+data "aws_cloudfront_origin_request_policy" "all_viewer_except_host" {
+  name = "Managed-AllViewerExceptHostHeader"
+}
+
+############################
+# CloudFront Function: rewrite /api/* -> /*
+############################
+resource "aws_cloudfront_function" "strip_api_prefix" {
+  name    = "${var.name_prefix}-strip-api-prefix"
+  runtime = "cloudfront-js-1.0"
+  comment = "Rewrite /api/* to /* before sending to API Gateway"
+  publish = true
+
+  code = <<EOF
+function handler(event) {
+  var request = event.request;
+  var uri = request.uri;
+
+  // /api (sin slash) -> /
+  if (uri === "/api") {
+    request.uri = "/";
+    return request;
+  }
+
+  // /api/... -> /...
+  if (uri.startsWith("/api/")) {
+    request.uri = uri.substring(4); // removes "/api"
+    return request;
+  }
+
+  return request;
+}
+EOF
 }
 
 ############################
@@ -102,6 +135,25 @@ resource "aws_cloudfront_distribution" "cdn" {
     cache_policy_id = data.aws_cloudfront_cache_policy.caching_optimized.id
   }
 
+  # /api (sin slash) debe ir al API origin, si no cae al default (S3) y devuelve AccessDenied
+  ordered_cache_behavior {
+    path_pattern           = "/api"
+    target_origin_id       = "api-gateway"
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods  = ["GET", "HEAD", "OPTIONS"]
+
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.strip_api_prefix.arn
+    }
+  }
+
+  # /api/* -> API origin, pero reescribiendo /api/... -> /...
   ordered_cache_behavior {
     path_pattern           = "/api/*"
     target_origin_id       = "api-gateway"
@@ -111,7 +163,12 @@ resource "aws_cloudfront_distribution" "cdn" {
     cached_methods  = ["GET", "HEAD", "OPTIONS"]
 
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.strip_api_prefix.arn
+    }
   }
 
   restrictions {
