@@ -73,3 +73,31 @@ output "api_access_log_group_name" {
 output "api_access_log_group_arn" {
   value = module.observability.api_access_log_group_arn
 }
+
+output "payments_secret_arn" {
+  value = module.secrets_manager.payments_secret_arn
+}
+
+output "payments_secret_name" {
+  value = module.secrets_manager.payments_secret_name
+}
+
+output "orders_lambda_arn" {
+  value = module.compute.orders_lambda_arn
+}
+
+output "payments_lambda_arn" {
+  value = module.compute.payments_lambda_arn
+}
+
+output "products_lambda_arn" {
+  value = module.compute.products_lambda_arn
+}
+
+output "notifications_worker_lambda_arn" {
+  value = module.compute.notifications_worker_lambda_arn
+}
+
+output "inventory_worker_lambda_arn" {
+  value = module.compute.inventory_worker_lambda_arn
+}

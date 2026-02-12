@@ -103,6 +103,17 @@ data "aws_iam_policy_document" "payments_policy" {
     actions   = ["sns:Publish"]
     resources = [var.sns_topic_arn]
   }
+
+  ############################
+  # Secrets Manager (solo lectura del secret de pagos)
+  ############################
+  statement {
+    effect = "Allow"
+    actions = [
+      "secretsmanager:GetSecretValue"
+    ]
+    resources = [var.payments_secret_arn]
+  }
 }
 
 data "aws_iam_policy_document" "products_policy" {
@@ -223,7 +234,8 @@ resource "aws_lambda_function" "payments" {
 
   environment {
     variables = {
-      SERVICE_NAME = "payments"
+      SERVICE_NAME        = "payments"
+      PAYMENTS_SECRET_ARN = var.payments_secret_arn
     }
   }
 

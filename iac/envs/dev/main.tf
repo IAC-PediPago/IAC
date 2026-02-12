@@ -77,6 +77,15 @@ module "messaging" {
   tags        = var.tags
 }
 
+############################
+# Secrets Manager
+############################
+module "secrets_manager" {
+  source      = "../../modules/secrets"
+  name_prefix = local.name_prefix
+  tags        = var.tags
+}
+
 module "compute" {
   source      = "../../modules/compute/lambdas"
   name_prefix = local.name_prefix
@@ -92,6 +101,9 @@ module "compute" {
   sns_topic_arn           = module.messaging.sns_topic_arn
   notifications_queue_arn = module.messaging.notifications_queue_arn
   inventory_queue_arn     = module.messaging.inventory_queue_arn
+
+  # Secret ARN para la Lambda de pagos (GetSecretValue + env var)
+  payments_secret_arn = module.secrets_manager.payments_secret_arn
 
   orders_zip_path               = "${path.module}/../../lambda_artifacts/orders.zip"
   payments_zip_path             = "${path.module}/../../lambda_artifacts/payments.zip"

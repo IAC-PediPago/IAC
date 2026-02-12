@@ -62,3 +62,8 @@ variable "notifications_worker_zip_path" {
 variable "inventory_worker_zip_path" {
   type = string
 }
+
+variable "payments_secret_arn" {
+  type        = string
+  description = "ARN del secret con credenciales de pagos"
+}
