@@ -65,9 +65,9 @@ locals {
 }
 
 resource "aws_apigatewayv2_authorizer" "jwt" {
-  api_id          = aws_apigatewayv2_api.http_api.id
-  name            = "${var.name_prefix}-jwt-authorizer"
-  authorizer_type = "JWT"
+  api_id           = aws_apigatewayv2_api.http_api.id
+  name             = "${var.name_prefix}-jwt-authorizer"
+  authorizer_type  = "JWT"
   identity_sources = ["$request.header.Authorization"]
 
   jwt_configuration {
