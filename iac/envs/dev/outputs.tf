@@ -65,3 +65,11 @@ output "notifications_dlq_arn" {
 output "inventory_dlq_arn" {
   value = module.messaging.inventory_dlq_arn
 }
+
+output "api_access_log_group_name" {
+  value = module.observability.api_access_log_group_name
+}
+
+output "api_access_log_group_arn" {
+  value = module.observability.api_access_log_group_arn
+}

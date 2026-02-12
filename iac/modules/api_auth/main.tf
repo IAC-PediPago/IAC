@@ -54,6 +54,18 @@ resource "aws_apigatewayv2_stage" "default" {
   name        = "$default"
   auto_deploy = true
 
+  depends_on = [
+    aws_apigatewayv2_api.http_api
+  ]
+
+  dynamic "access_log_settings" {
+    for_each = var.enable_access_logs && var.access_log_destination_arn != null && var.access_log_format != null ? [1] : []
+    content {
+      destination_arn = var.access_log_destination_arn
+      format          = var.access_log_format
+    }
+  }
+
   tags = var.tags
 }
 

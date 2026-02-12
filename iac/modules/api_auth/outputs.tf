@@ -25,3 +25,7 @@ output "user_pool_client_id" {
 output "jwt_issuer" {
   value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.users.id}"
 }
+
+output "api_stage_name" {
+  value = aws_apigatewayv2_stage.default.name
+}

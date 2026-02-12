@@ -5,11 +5,45 @@ module "frontend_hosting" {
   tags        = var.tags
 }
 
+# Observabilidad primero (rompe dependencia circular)
+module "observability" {
+  source      = "../../modules/observability"
+  name_prefix = local.name_prefix
+  tags        = var.tags
+
+  log_retention_days = 14
+
+  # Nombres determinísticos (no depende del módulo compute)
+  lambda_function_names = [
+    "${local.name_prefix}-orders",
+    "${local.name_prefix}-payments",
+    "${local.name_prefix}-products",
+    "${local.name_prefix}-notifications-worker",
+    "${local.name_prefix}-inventory-worker"
+  ]
+
+  enable_api_access_logs    = true
+  api_access_log_group_name = "/aws/apigateway/${local.name_prefix}-http-api-access"
+}
+
 module "api_auth" {
   source      = "../../modules/api_auth"
   name_prefix = local.name_prefix
   aws_region  = var.aws_region
   tags        = var.tags
+
+  enable_access_logs         = true
+  access_log_destination_arn = module.observability.api_access_log_group_arn
+  access_log_format = jsonencode({
+    requestId      = "$context.requestId"
+    ip             = "$context.identity.sourceIp"
+    requestTime    = "$context.requestTime"
+    httpMethod     = "$context.httpMethod"
+    routeKey       = "$context.routeKey"
+    status         = "$context.status"
+    responseLength = "$context.responseLength"
+    userAgent      = "$context.identity.userAgent"
+  })
 }
 
 module "edge" {
