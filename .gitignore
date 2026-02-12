@@ -27,3 +27,6 @@ Thumbs.db
 # Checkov
 tools/checkov/reports/
 tools/checkov/reports/*.json
+
+# Lambdas
+lambdas/*.zip
