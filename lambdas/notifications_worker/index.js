@@ -1,11 +1,13 @@
 ﻿exports.handler = async (event) => {
-  return {
-    statusCode: 200,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      ok: true,
-      service: process.env.SERVICE_NAME || "unknown",
-      received: event,
-    }),
-  };
+  // event.Records viene desde SQS
+  const records = event?.Records ?? [];
+  console.log("notifications_worker records:", records.length);
+
+  for (const r of records) {
+    console.log("messageId:", r.messageId);
+    console.log("body:", r.body);
+  }
+
+  // Si no lanzas error, Lambda considera “OK” y SQS borra mensajes (por el mapping)
+  return { ok: true, processed: records.length };
 };
