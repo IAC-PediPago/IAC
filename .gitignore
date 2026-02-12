@@ -23,3 +23,7 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+
+# Checkov
+tools/checkov/reports/
+tools/checkov/reports/*.json

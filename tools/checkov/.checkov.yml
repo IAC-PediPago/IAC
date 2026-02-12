@@ -1,0 +1,14 @@
+quiet: true
+compact: true
+
+framework:
+  - terraform
+
+skip-path:
+  - .terraform
+  - iac/envs/**/.terraform
+  - node_modules
+  - dist
+  - build
+  - lambda_artifacts
+  - tools/checkov/reports
