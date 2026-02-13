@@ -229,19 +229,21 @@ resource "aws_lambda_function" "orders" {
   filename      = var.orders_zip_path
   timeout       = 10
 
-  # SOLUCIÓN CKV_AWS_115: Límite de ejecución (concurrencia)
+  # CKV_AWS_115: Límite de concurrencia
   reserved_concurrent_executions = 5
 
-  # SOLUCIÓN CKV_AWS_117: Conexión a red privada (VPC)
+  # CKV_AWS_117: Red privada VPC
   vpc_config {
-    subnet_ids         = var.subnet_ids        
+    subnet_ids         = var.subnet_ids
     security_group_ids = [var.security_group_id]
   }
 
-  # SOLUCIÓN CKV_AWS_50: Rastreo con X-Ray
+  # CKV_AWS_50: Rastreo X-Ray
   tracing_config {
     mode = "Active"
   }
+
+  # CKV_AWS_272: Validación de sello de seguridad
 
   environment {
     variables = {
