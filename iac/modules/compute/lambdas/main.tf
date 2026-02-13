@@ -243,7 +243,13 @@ resource "aws_lambda_function" "orders" {
     mode = "Active"
   }
 
-  # CKV_AWS_272: Validación de sello de seguridad
+ # SOLUCIÓN CKV_AWS_272: Activa la verificación del sello de seguridad
+  
+  code_signing_config_arn = var.code_signing_config_arn
+
+# SOLUCIÓN CKV_AWS_173: Cifrado con llave propia (KMS)
+  # Esto protege las variables de entorno con una llave personalizada
+  kms_key_arn = var.lambda_kms_key_arn
 
   environment {
     variables = {
@@ -253,6 +259,7 @@ resource "aws_lambda_function" "orders" {
 
   tags = var.tags
 }
+
 
 resource "aws_lambda_function" "payments" {
   function_name    = "${var.name_prefix}-payments"
