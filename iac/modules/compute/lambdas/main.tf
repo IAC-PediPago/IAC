@@ -161,6 +161,7 @@ resource "aws_iam_role_policy" "orders_logs" {
   role   = aws_iam_role.orders.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
+
 resource "aws_iam_role_policy" "orders_inline" {
   role   = aws_iam_role.orders.id
   policy = data.aws_iam_policy_document.orders_policy.json
@@ -170,6 +171,7 @@ resource "aws_iam_role_policy" "payments_logs" {
   role   = aws_iam_role.payments.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
+
 resource "aws_iam_role_policy" "payments_inline" {
   role   = aws_iam_role.payments.id
   policy = data.aws_iam_policy_document.payments_policy.json
@@ -179,6 +181,7 @@ resource "aws_iam_role_policy" "products_logs" {
   role   = aws_iam_role.products.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
+
 resource "aws_iam_role_policy" "products_inline" {
   role   = aws_iam_role.products.id
   policy = data.aws_iam_policy_document.products_policy.json
@@ -188,6 +191,7 @@ resource "aws_iam_role_policy" "notifications_logs" {
   role   = aws_iam_role.notifications_worker.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
+
 resource "aws_iam_role_policy" "notifications_inline" {
   role   = aws_iam_role.notifications_worker.id
   policy = data.aws_iam_policy_document.notifications_worker_policy.json
@@ -197,13 +201,14 @@ resource "aws_iam_role_policy" "inventory_logs" {
   role   = aws_iam_role.inventory_worker.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
+
 resource "aws_iam_role_policy" "inventory_inline" {
   role   = aws_iam_role.inventory_worker.id
   policy = data.aws_iam_policy_document.inventory_worker_policy.json
 }
 
 ############################
-# Lambdas (placeholder ZIP)
+# Lambdas (ZIP)
 ############################
 resource "aws_lambda_function" "orders" {
   function_name    = "${var.name_prefix}-orders"
