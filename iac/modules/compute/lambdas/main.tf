@@ -270,6 +270,9 @@ resource "aws_lambda_function" "payments" {
   source_code_hash = filebase64sha256(var.payments_zip_path)
   timeout          = 10
 
+  # solucion al error CKV_AWS_115
+  reserved_concurrent_executions = 5 
+
   environment {
     variables = {
       SERVICE_NAME        = "payments"
