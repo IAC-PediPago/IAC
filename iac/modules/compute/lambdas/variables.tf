@@ -68,3 +68,36 @@ variable "payments_secret_arn" {
   type        = string
   description = "ARN del secret con credenciales de pagos"
 }
+variable "subnet_ids" {
+  description = "Lista de IDs de subnets para la VPC"
+  type        = list(string)
+}
+
+variable "security_group_id" {
+  description = "ID del Security Group para la Lambda"
+  type        = string
+}
+
+#E_272
+variable "code_signing_config_arn" {
+  description = "ARN del sello de seguridad para validar el código de la Lambda"
+  type        = string
+  default     = null 
+}
+
+#E_173
+variable "code_signing_config_arn" {
+  type    = string
+  default = null
+}
+
+variable "lambda_kms_key_arn" {
+  type    = string
+  default = null
+}
+
+#-116
+variable "dlq_arn" {
+  description = "ARN de la cola SQS para manejar fallos de la Lambda (DLQ)"
+  type        = string
+}
