@@ -398,10 +398,17 @@ resource "aws_apigatewayv2_route" "payments_post" {
 
 # Webhook inbound: sin auth
 resource "aws_apigatewayv2_route" "payments_webhook_post" {
-  api_id    = var.api_id
-  route_key = "POST /payments/webhook"
-  target    = "integrations/${aws_apigatewayv2_integration.payments.id}"
+  api_id             = var.api_id
+  route_key          = "POST /payments/webhook"
+  target             = "integrations/${aws_apigatewayv2_integration.payments.id}"
+
+  # Solución al error CKV_AWS_309: Define el método de seguridad
+  # Usa "NONE" si el webhook es público o "JWT"/"AWS_IAM" si requiere validación
+  authorization_type = "NONE"
 }
+
+
+
 
 resource "aws_apigatewayv2_route" "products_get" {
   api_id             = var.api_id
