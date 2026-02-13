@@ -222,13 +222,26 @@ resource "aws_iam_role_policy" "inventory_inline" {
 # Lambdas (ZIP)
 ############################
 resource "aws_lambda_function" "orders" {
-  function_name    = "${var.name_prefix}-orders"
-  role             = aws_iam_role.orders.arn
-  handler          = "index.handler"
-  runtime          = "nodejs20.x"
-  filename         = var.orders_zip_path
-  source_code_hash = filebase64sha256(var.orders_zip_path)
-  timeout          = 10
+  function_name = "${var.name_prefix}-orders"
+  role          = aws_iam_role.orders.arn
+  handler       = "index.handler"
+  runtime       = "nodejs20.x"
+  filename      = var.orders_zip_path
+  timeout       = 10
+
+  # SOLUCIÓN CKV_AWS_115: Límite de ejecución (concurrencia)
+  reserved_concurrent_executions = 5
+
+  # SOLUCIÓN CKV_AWS_117: Conexión a red privada (VPC)
+  vpc_config {
+    subnet_ids         = var.subnet_ids        
+    security_group_ids = [var.security_group_id]
+  }
+
+  # SOLUCIÓN CKV_AWS_50: Rastreo con X-Ray
+  tracing_config {
+    mode = "Active"
+  }
 
   environment {
     variables = {
