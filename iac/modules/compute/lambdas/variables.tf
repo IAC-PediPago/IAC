@@ -101,3 +101,14 @@ variable "dlq_arn" {
   description = "ARN de la cola SQS para manejar fallos de la Lambda (DLQ)"
   type        = string
 }
+
+#E_117
+variable "subnet_ids" {
+  description = "Lista de IDs de las subredes donde correra la Lambda"
+  type        = list(string)
+}
+
+variable "security_group_id" {
+  description = "ID del grupo de seguridad para la Lambda"
+  type        = string
+}
