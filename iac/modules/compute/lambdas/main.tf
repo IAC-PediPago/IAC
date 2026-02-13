@@ -19,15 +19,26 @@ data "aws_iam_policy_document" "lambda_assume" {
 ############################
 # IAM: Logs mínimo
 ############################
+
+# Definición de la política de logs para la Lambda
 data "aws_iam_policy_document" "lambda_logs" {
   statement {
     effect = "Allow"
+
+    # Acciones permitidas para gestionar logs
     actions = [
       "logs:CreateLogGroup",
       "logs:CreateLogStream",
       "logs:PutLogEvents"
     ]
-    resources = ["*"]
+
+    # SOLUCIÓN CKV_AWS_111 y CKV_AWS_356:
+    # Restringimos el permiso a los grupos de logs 
+    # dentro de tu región y cuenta específica.
+    resources = [
+      "arn:aws:logs:*:*:log-group:/aws/lambda/*",
+      "arn:aws:logs:*:*:log-group:/aws/lambda/*:*"
+    ]
   }
 }
 
