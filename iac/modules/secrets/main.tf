@@ -4,11 +4,11 @@
 ############################
 
 resource "aws_secretsmanager_secret" "payments" {
-  name        = var.payments_secret_name
+  name        = coalesce(var.payments_secret_name, "${var.name_prefix}-payments-secrets")
   description = var.payments_secret_description
-
-  tags = var.tags
+  tags        = var.tags
 }
+
 
 # Versión inicial (valores placeholder)
 # Luego puedes actualizarlo desde consola/CLI sin cambiar Terraform.

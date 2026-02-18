@@ -1,0 +1,29 @@
+- name: Write backend.hcl (remote state)
+  copy:
+    dest: "{{ tf_working_dir }}/backend.hcl"
+    content: |
+      bucket         = "{{ tf_backend_bucket }}"
+      key            = "{{ tf_backend_key }}"
+      region         = "{{ tf_backend_region }}"
+      dynamodb_table = "{{ tf_backend_dynamodb_table }}"
+      encrypt        = {{ tf_backend_encrypt | bool | lower }}
+
+- name: Terraform init (reconfigure backend)
+  command: terraform init -input=false -reconfigure -backend-config=backend.hcl
+  args:
+    chdir: "{{ tf_working_dir }}"
+
+- name: Ensure tfplan exists (run plan first)
+  stat:
+    path: "{{ tf_plan_file }}"
+  register: tfplan
+
+- name: Fail if tfplan missing
+  fail:
+    msg: "No existe {{ tf_plan_file }}. Ejecuta el playbook plan primero."
+  when: not tfplan.stat.exists
+
+- name: Terraform apply (from plan)
+  command: terraform apply -input=false {{ '-auto-approve' if tf_auto_approve else '' }} "{{ tf_plan_file }}"
+  args:
+    chdir: "{{ tf_working_dir }}"

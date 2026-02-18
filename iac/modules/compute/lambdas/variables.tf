@@ -7,7 +7,17 @@ variable "tags" {
   default = {}
 }
 
+############################
+# Región (para armar ARNs sin data.aws_region)
+############################
+variable "aws_region" {
+  type        = string
+  description = "Región AWS (ej: us-east-1)"
+}
+
+############################
 # API/Auth
+############################
 variable "api_id" {
   type = string
 }
@@ -16,7 +26,9 @@ variable "authorizer_id" {
   type = string
 }
 
+############################
 # DynamoDB ARNs
+############################
 variable "orders_table_arn" {
   type = string
 }
@@ -29,7 +41,9 @@ variable "products_table_arn" {
   type = string
 }
 
+############################
 # SNS/SQS ARNs
+############################
 variable "sns_topic_arn" {
   type = string
 }
@@ -42,7 +56,9 @@ variable "inventory_queue_arn" {
   type = string
 }
 
+############################
 # ZIP paths
+############################
 variable "orders_zip_path" {
   type = string
 }
@@ -63,52 +79,49 @@ variable "inventory_worker_zip_path" {
   type = string
 }
 
+############################
 # Secrets Manager
+############################
 variable "payments_secret_arn" {
   type        = string
   description = "ARN del secret con credenciales de pagos"
 }
+
+############################
+# Opcionales (no bloquean si aún no existen)
+############################
 variable "subnet_ids" {
-  description = "Lista de IDs de subnets para la VPC"
   type        = list(string)
+  description = "Lista de Subnet IDs para Lambdas (opcional). Si está vacía, no se configura VPC."
+  default     = []
 }
 
 variable "security_group_id" {
-  description = "ID del Security Group para la Lambda"
   type        = string
+  description = "Security Group ID para Lambdas (opcional). Si es null, no se configura VPC."
+  default     = null
 }
 
-#E_272
-variable "code_signing_config_arn" {
-  description = "ARN del sello de seguridad para validar el código de la Lambda"
+variable "dlq_arn" {
   type        = string
-  default     = null 
+  description = "ARN de DLQ para Lambdas (opcional). Si es null, no se configura DLQ."
+  default     = null
 }
 
-#E_173
 variable "code_signing_config_arn" {
-  type    = string
-  default = null
+  type        = string
+  description = "ARN del Code Signing Config (opcional)."
+  default     = null
 }
 
 variable "lambda_kms_key_arn" {
-  type    = string
-  default = null
-}
-
-#-116
-variable "dlq_arn" {
-  description = "ARN de la cola SQS para manejar fallos de la Lambda (DLQ)"
   type        = string
+  description = "ARN de KMS Key para cifrar variables de entorno (opcional)."
+  default     = null
 }
 
-#E_117
-variable "subnet_ids" {
-  description = "Lista de IDs de las subredes donde correra la Lambda"
-  type        = list(string)
-}
-
-variable "security_group_id" {
-  description = "ID del grupo de seguridad para la Lambda"
-  type        = string
+variable "lambda_reserved_concurrency" {
+  type        = number
+  default     = null
+  description = "Reserved concurrency para Lambdas. null desactiva (Terraform usa -1 = unreserved)."
 }

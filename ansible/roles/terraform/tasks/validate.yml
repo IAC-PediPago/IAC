@@ -1,0 +1,33 @@
+- name: Terraform init (no interactive)
+  command: terraform init -input=false
+  args:
+    chdir: "{{ tf_working_dir }}"
+
+- name: Terraform fmt check (recursive)
+  command: terraform fmt -recursive -check
+  args:
+    chdir: "{{ tf_working_dir }}"
+
+- name: Terraform validate
+  command: terraform validate
+  args:
+    chdir: "{{ tf_working_dir }}"
+
+# CHECKOV 
+- name: Checkov pull image
+  command: docker pull {{ checkov_image }}
+  args:
+    chdir: "{{ repo_root }}"
+
+- name: Checkov scan IaC and write junitxml
+  command: >
+    docker run --rm
+    -v "{{ repo_root }}:/tf"
+    --workdir /tf
+    {{ checkov_image }}
+    --directory /tf/iac
+    -o junitxml
+    --output-file-path /tf/tools/checkov/reports/results.xml
+    {{ '--soft-fail' if checkov_soft_fail | bool else '' }}
+  args:
+    chdir: "{{ repo_root }}"

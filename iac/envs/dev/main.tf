@@ -91,6 +91,7 @@ module "compute" {
   name_prefix = local.name_prefix
   tags        = var.tags
 
+  aws_region    = var.aws_region
   api_id        = module.api_auth.api_id
   authorizer_id = module.api_auth.authorizer_id
 
@@ -102,7 +103,6 @@ module "compute" {
   notifications_queue_arn = module.messaging.notifications_queue_arn
   inventory_queue_arn     = module.messaging.inventory_queue_arn
 
-  # Secret ARN para la Lambda de pagos (GetSecretValue + env var)
   payments_secret_arn = module.secrets_manager.payments_secret_arn
 
   orders_zip_path               = "${path.module}/../../lambda_artifacts/orders.zip"
@@ -110,4 +110,6 @@ module "compute" {
   products_zip_path             = "${path.module}/../../lambda_artifacts/products.zip"
   notifications_worker_zip_path = "${path.module}/../../lambda_artifacts/notifications_worker.zip"
   inventory_worker_zip_path     = "${path.module}/../../lambda_artifacts/inventory_worker.zip"
+
+  lambda_reserved_concurrency = null
 }

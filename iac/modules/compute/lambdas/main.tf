@@ -1,4 +1,3 @@
-data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 ############################
@@ -17,24 +16,16 @@ data "aws_iam_policy_document" "lambda_assume" {
 }
 
 ############################
-# IAM: Logs mínimo
+# IAM: Logs mínimo (restringido)
 ############################
-
-# Definición de la política de logs para la Lambda
 data "aws_iam_policy_document" "lambda_logs" {
   statement {
     effect = "Allow"
-
-    # Acciones permitidas para gestionar logs
     actions = [
       "logs:CreateLogGroup",
       "logs:CreateLogStream",
       "logs:PutLogEvents"
     ]
-
-    # SOLUCIÓN CKV_AWS_111 y CKV_AWS_356:
-    # Restringimos el permiso a los grupos de logs 
-    # dentro de tu región y cuenta específica.
     resources = [
       "arn:aws:logs:*:*:log-group:/aws/lambda/*",
       "arn:aws:logs:*:*:log-group:/aws/lambda/*:*"
@@ -115,14 +106,9 @@ data "aws_iam_policy_document" "payments_policy" {
     resources = [var.sns_topic_arn]
   }
 
-  ############################
-  # Secrets Manager (solo lectura del secret de pagos)
-  ############################
   statement {
-    effect = "Allow"
-    actions = [
-      "secretsmanager:GetSecretValue"
-    ]
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
     resources = [var.payments_secret_arn]
   }
 }
@@ -222,34 +208,37 @@ resource "aws_iam_role_policy" "inventory_inline" {
 # Lambdas (ZIP)
 ############################
 resource "aws_lambda_function" "orders" {
-  function_name = "${var.name_prefix}-orders"
-  role          = aws_iam_role.orders.arn
-  handler       = "index.handler"
-  runtime       = "nodejs20.x"
-  filename      = var.orders_zip_path
-  timeout       = 10
+  function_name    = "${var.name_prefix}-orders"
+  role             = aws_iam_role.orders.arn
+  handler          = "index.handler"
+  runtime          = "nodejs20.x"
+  filename         = var.orders_zip_path
+  source_code_hash = filebase64sha256(var.orders_zip_path)
+  timeout          = 10
 
-  # CKV_AWS_115: Límite de concurrencia
-  reserved_concurrent_executions = 5
+  reserved_concurrent_executions = var.lambda_reserved_concurrency != null ? var.lambda_reserved_concurrency : -1
 
-  # CKV_AWS_117: Red privada VPC
-  vpc_config {
-    subnet_ids         = var.subnet_ids
-    security_group_ids = [var.security_group_id]
+  dynamic "dead_letter_config" {
+    for_each = var.dlq_arn != null ? [1] : []
+    content {
+      target_arn = var.dlq_arn
+    }
   }
 
-  # CKV_AWS_50: Rastreo X-Ray
+  dynamic "vpc_config" {
+    for_each = (var.security_group_id != null && length(var.subnet_ids) > 0) ? [1] : []
+    content {
+      subnet_ids         = var.subnet_ids
+      security_group_ids = [var.security_group_id]
+    }
+  }
+
   tracing_config {
     mode = "Active"
   }
 
- # SOLUCIÓN CKV_AWS_272: Activa la verificación del sello de seguridad
-  
   code_signing_config_arn = var.code_signing_config_arn
-
-# SOLUCIÓN CKV_AWS_173: Cifrado con llave propia (KMS)
-  # Esto protege las variables de entorno con una llave personalizada
-  kms_key_arn = var.lambda_kms_key_arn
+  kms_key_arn             = var.lambda_kms_key_arn
 
   environment {
     variables = {
@@ -260,7 +249,6 @@ resource "aws_lambda_function" "orders" {
   tags = var.tags
 }
 
-
 resource "aws_lambda_function" "payments" {
   function_name    = "${var.name_prefix}-payments"
   role             = aws_iam_role.payments.arn
@@ -270,8 +258,15 @@ resource "aws_lambda_function" "payments" {
   source_code_hash = filebase64sha256(var.payments_zip_path)
   timeout          = 10
 
-  # solucion al error CKV_AWS_115
-  reserved_concurrent_executions = 5 
+  reserved_concurrent_executions = var.lambda_reserved_concurrency != null ? var.lambda_reserved_concurrency : -1
+
+  dynamic "vpc_config" {
+    for_each = (var.security_group_id != null && length(var.subnet_ids) > 0) ? [1] : []
+    content {
+      subnet_ids         = var.subnet_ids
+      security_group_ids = [var.security_group_id]
+    }
+  }
 
   environment {
     variables = {
@@ -396,19 +391,12 @@ resource "aws_apigatewayv2_route" "payments_post" {
   authorizer_id      = var.authorizer_id
 }
 
-# Webhook inbound: sin auth
 resource "aws_apigatewayv2_route" "payments_webhook_post" {
   api_id             = var.api_id
   route_key          = "POST /payments/webhook"
   target             = "integrations/${aws_apigatewayv2_integration.payments.id}"
-
-  # Solución al error CKV_AWS_309: Define el método de seguridad
-  # Usa "NONE" si el webhook es público o "JWT"/"AWS_IAM" si requiere validación
   authorization_type = "NONE"
 }
-
-
-
 
 resource "aws_apigatewayv2_route" "products_get" {
   api_id             = var.api_id
@@ -426,7 +414,8 @@ resource "aws_lambda_permission" "orders_invoke" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.orders.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "arn:aws:execute-api:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
+
+  source_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
 }
 
 resource "aws_lambda_permission" "payments_invoke" {
@@ -434,7 +423,8 @@ resource "aws_lambda_permission" "payments_invoke" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.payments.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "arn:aws:execute-api:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
+
+  source_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
 }
 
 resource "aws_lambda_permission" "products_invoke" {
@@ -442,7 +432,8 @@ resource "aws_lambda_permission" "products_invoke" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.products.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "arn:aws:execute-api:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
+
+  source_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
 }
 
 ############################

@@ -1,0 +1,24 @@
+# Root del repo
+repo_root: "{{ playbook_dir }}/../.."
+
+# Terraform env dir
+tf_working_dir: "{{ repo_root }}/iac/envs/dev"
+
+# Artifact del plan
+tf_plan_file: "{{ tf_working_dir }}/tfplan"
+tf_plan_txt: "{{ tf_working_dir }}/plan.txt"
+
+# Flags
+tf_auto_approve: false
+
+# Destroy safety
+confirm_destroy: false
+
+# Checkov
+checkov_image: "bridgecrew/checkov:3"
+checkov_report_path: "{{ repo_root }}/tools/checkov/reports/results.xml"
+checkov_soft_fail: false
+
+# Tests (Node)
+run_tests: true
+lambdas_dir: "{{ repo_root }}/iac/lambdas"

@@ -18,6 +18,10 @@ variable "payments_secret_name" {
   default     = null
 }
 
+locals {
+  payments_secret_name_effective = coalesce(var.payments_secret_name, "${var.name_prefix}-payments-secrets")
+}
+
 variable "payments_secret_description" {
   type        = string
   description = "Descripción del secret"
