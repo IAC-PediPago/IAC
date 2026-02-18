@@ -8,15 +8,18 @@
   args:
     chdir: "{{ repo_root }}"
 
-- name: Run Checkov scan and write junitxml (to folder)
-  command: >
-    docker run --rm
-    -v "{{ repo_root }}:/tf"
-    --workdir /tf
-    {{ checkov_image }}
-    --directory /tf/{{ checkov_directory }}
-    -o junitxml
-    --output-file-path /tf/{{ checkov_output_dir }}
-    {{ '--soft-fail' if checkov_soft_fail | bool else '' }}
+- name: Run Checkov scan and write junitxml (stdout -> file)
+  shell: |
+    set -euo pipefail
+    docker run --rm \
+      -v "{{ repo_root }}:/tf" \
+      --workdir /tf \
+      {{ checkov_image }} \
+      --directory /tf/{{ checkov_directory }} \
+      -o junitxml \
+      {{ '--soft-fail' if checkov_soft_fail | bool else '' }} \
+      > "{{ repo_root }}/{{ checkov_output_dir }}/{{ checkov_output_filename }}"
+    ls -lah "{{ repo_root }}/{{ checkov_output_dir }}"
   args:
+    executable: /bin/bash
     chdir: "{{ repo_root }}"
