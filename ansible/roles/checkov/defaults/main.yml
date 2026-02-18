@@ -4,8 +4,5 @@ checkov_soft_fail: true
 # Carpeta a escanear dentro del repo montado en /tf
 checkov_directory: "iac"
 
-# Directorio donde se guardará el reporte
+# Directorio donde se guardará el reporte (Checkov pondrá su nombre por defecto)
 checkov_output_dir: "cicd/reports/checkov"
-
-# Nombre final 
-checkov_output_filename: "results.xml"
