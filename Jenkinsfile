@@ -8,7 +8,7 @@ pipeline {
   }
 
   environment {
-    ANSIBLE_CONFIG     = "ansible/ansible.cfg"
+    ANSIBLE_CONFIG = "ansible/ansible.cfg"
     ANSIBLE_ROLES_PATH = "ansible/roles"
     AWS_DEFAULT_REGION = "us-east-1"
   }
@@ -20,9 +20,7 @@ pipeline {
 
   stages {
     stage('Checkout') {
-      steps {
-        checkout scm
-      }
+      steps { checkout scm }
     }
 
     stage('Sanity: Tools') {
@@ -33,8 +31,8 @@ pipeline {
           ansible --version
           terraform -version
           docker version
-          node --version || true
-          zip -v | head -n 2 || true
+          node --version
+          zip -v | head -n 2
         '''
       }
     }
@@ -43,50 +41,50 @@ pipeline {
       steps {
         sh '''
           set -euo pipefail
+          echo "==> Workspace: $PWD"
 
-          echo "==> Workspace: $WORKSPACE"
-          test -d "$WORKSPACE/lambdas" || (echo "ERROR: No existe la carpeta lambdas/ en el repo" && exit 1)
+          test -d lambdas
+          test -f lambdas/package.json
 
-          mkdir -p "$WORKSPACE/iac/lambda_artifacts"
+          mkdir -p iac/lambda_artifacts
 
-          echo "==> Install deps inside Docker (node:20-alpine)"
-          docker run --rm \
-            -u "0:0" \
-            -v "$WORKSPACE:/work" \
-            -w /work/lambdas \
-            node:20-alpine \
-            sh -lc 'apk add --no-cache zip >/dev/null && if [ -f package-lock.json ]; then npm ci; else npm install; fi'
-
-          echo "==> Packaging Lambdas..."
-          HAS_LOCK="false"
-          if [ -f "$WORKSPACE/lambdas/package-lock.json" ]; then
-            HAS_LOCK="true"
+          echo "==> Installing dependencies (npm ci if lock exists)"
+          cd lambdas
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
           fi
+          cd ..
 
-          targets="orders payments products notifications_worker inventory_worker"
-          for d in $targets; do
-            zipname="$d.zip"
-            echo "  -> $d => iac/lambda_artifacts/$zipname"
+          echo "==> Packaging Lambdas to iac/lambda_artifacts/"
+          HAS_LOCK="false"
+          if [ -f lambdas/package-lock.json ]; then HAS_LOCK="true"; fi
+
+          zip_one () {
+            NAME="$1"
+            OUT="$2"
+            rm -f "iac/lambda_artifacts/$OUT"
 
             if [ "$HAS_LOCK" = "true" ]; then
-              docker run --rm \
-                -u "0:0" \
-                -v "$WORKSPACE:/work" \
-                -w /work/lambdas \
-                node:20-alpine \
-                sh -lc "apk add --no-cache zip >/dev/null && rm -f /work/iac/lambda_artifacts/$zipname && zip -r /work/iac/lambda_artifacts/$zipname $d shared node_modules package.json package-lock.json >/dev/null"
+              (cd lambdas && zip -r "../iac/lambda_artifacts/$OUT" "$NAME" shared node_modules package.json package-lock.json >/dev/null)
             else
-              docker run --rm \
-                -u "0:0" \
-                -v "$WORKSPACE:/work" \
-                -w /work/lambdas \
-                node:20-alpine \
-                sh -lc "apk add --no-cache zip >/dev/null && rm -f /work/iac/lambda_artifacts/$zipname && zip -r /work/iac/lambda_artifacts/$zipname $d shared node_modules package.json >/dev/null"
+              (cd lambdas && zip -r "../iac/lambda_artifacts/$OUT" "$NAME" shared node_modules package.json >/dev/null)
             fi
-          done
+            echo "   OK -> $OUT"
+          }
 
-          echo "==> Artifacts generated:"
-          ls -lh "$WORKSPACE/iac/lambda_artifacts"
+          zip_one "orders"               "orders.zip"
+          zip_one "payments"             "payments.zip"
+          zip_one "products"             "products.zip"
+          zip_one "notifications_worker" "notifications_worker.zip"
+          zip_one "inventory_worker"     "inventory_worker.zip"
+
+          echo "==> Artifacts:"
+          ls -lh iac/lambda_artifacts/*.zip
+
+          # opcional: limpiar para no dejar pesado el workspace
+          # rm -rf lambdas/node_modules
         '''
       }
     }
@@ -97,10 +95,10 @@ pipeline {
           usernameVariable: 'AWS_ACCESS_KEY_ID',
           passwordVariable: 'AWS_SECRET_ACCESS_KEY'
         )]) {
-          sh """
+          sh '''
             ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/validate.yml \
-              -e checkov_soft_fail=${params.CHECKOV_SOFT_FAIL}
-          """
+              -e checkov_soft_fail=${CHECKOV_SOFT_FAIL}
+          '''
         }
       }
     }
@@ -127,10 +125,10 @@ pipeline {
           usernameVariable: 'AWS_ACCESS_KEY_ID',
           passwordVariable: 'AWS_SECRET_ACCESS_KEY'
         )]) {
-          sh """
+          sh '''
             ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/apply.yml \
-              -e tf_auto_approve=${params.AUTO_APPROVE}
-          """
+              -e tf_auto_approve=${AUTO_APPROVE}
+          '''
         }
       }
     }
@@ -140,8 +138,6 @@ pipeline {
     always {
       archiveArtifacts artifacts: 'tools/checkov/reports/results.xml', allowEmptyArchive: true
       archiveArtifacts artifacts: 'iac/envs/dev/plan.txt', allowEmptyArchive: true
-
-      // Opcional: útil para debug si algo falla con rutas/hashes
       archiveArtifacts artifacts: 'iac/lambda_artifacts/*.zip', allowEmptyArchive: true
     }
   }
