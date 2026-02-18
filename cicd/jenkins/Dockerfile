@@ -2,9 +2,9 @@ FROM jenkins/jenkins:lts-jdk17
 
 USER root
 
-# Paquetes base + deps
+# Paquetes base + deps (agrego zip)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl gnupg lsb-release git unzip jq \
+    ca-certificates curl gnupg lsb-release git unzip jq zip \
     python3 python3-pip python3-venv \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -23,9 +23,18 @@ RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/sh
  && apt-get update && apt-get install -y --no-install-recommends terraform \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# ---------- Node.js 20 (npm ci + build zips) ----------
+RUN mkdir -p /usr/share/keyrings \
+ && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
+    > /etc/apt/sources.list.d/nodesource.list \
+ && apt-get update && apt-get install -y --no-install-recommends nodejs \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # ---------- Ansible ----------
-# Opción simple: ansible-core desde pip (estable para pipelines)
-RUN pip3 install --no-cache-dir ansible==9.2.0
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ansible \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Plugins (instalación offline reproducible)
 COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
