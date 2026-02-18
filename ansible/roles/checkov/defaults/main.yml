@@ -1,0 +1,4 @@
+checkov_image: "bridgecrew/checkov:latest"
+checkov_soft_fail: true
+checkov_directory: "iac"
+checkov_output_path: "cicd/reports/checkov/results.xml"

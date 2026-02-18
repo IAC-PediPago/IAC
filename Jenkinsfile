@@ -2,13 +2,14 @@ pipeline {
   agent any
 
   parameters {
-    booleanParam(name: 'RUN_APPLY', defaultValue: false, description: 'Ejecutar apply')
-    booleanParam(name: 'AUTO_APPROVE', defaultValue: true, description: 'Auto approve para apply')
+    booleanParam(name: 'RUN_APPLY', defaultValue: false, description: 'Ejecutar apply (requiere confirmación)')
+    booleanParam(name: 'RUN_DESTROY', defaultValue: false, description: 'Ejecutar destroy (PELIGRO, requiere confirmación)')
+    booleanParam(name: 'AUTO_APPROVE', defaultValue: true, description: 'Auto approve para apply/destroy')
     booleanParam(name: 'CHECKOV_SOFT_FAIL', defaultValue: true, description: 'No fallar el build por findings de Checkov')
   }
 
   environment {
-    ANSIBLE_CONFIG = "ansible/ansible.cfg"
+    ANSIBLE_CONFIG     = "ansible/ansible.cfg"
     ANSIBLE_ROLES_PATH = "ansible/roles"
     AWS_DEFAULT_REGION = "us-east-1"
   }
@@ -16,6 +17,7 @@ pipeline {
   options {
     timestamps()
     ansiColor('xterm')
+    disableConcurrentBuilds()
   }
 
   stages {
@@ -82,9 +84,6 @@ pipeline {
 
           echo "==> Artifacts:"
           ls -lh iac/lambda_artifacts/*.zip
-
-          # opcional: limpiar para no dejar pesado el workspace
-          # rm -rf lambdas/node_modules
         '''
       }
     }
@@ -96,7 +95,20 @@ pipeline {
           passwordVariable: 'AWS_SECRET_ACCESS_KEY'
         )]) {
           sh '''
-            ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/validate.yml \
+            ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/validate.yml
+          '''
+        }
+      }
+    }
+
+    stage('Checkov') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'aws-dev',
+          usernameVariable: 'AWS_ACCESS_KEY_ID',
+          passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+        )]) {
+          sh '''
+            ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/checkov.yml \
               -e checkov_soft_fail=${CHECKOV_SOFT_FAIL}
           '''
         }
@@ -132,11 +144,28 @@ pipeline {
         }
       }
     }
+
+    stage('Destroy') {
+      when { expression { return params.RUN_DESTROY } }
+      steps {
+        input message: "ÚLTIMA CONFIRMACIÓN: ¿Destroy en dev?", ok: "Sí, destruir"
+        withCredentials([usernamePassword(credentialsId: 'aws-dev',
+          usernameVariable: 'AWS_ACCESS_KEY_ID',
+          passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+        )]) {
+          sh '''
+            ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/destroy.yml \
+              -e tf_auto_approve=${AUTO_APPROVE}
+          '''
+        }
+      }
+    }
   }
 
   post {
     always {
-      archiveArtifacts artifacts: 'tools/checkov/reports/results.xml', allowEmptyArchive: true
+      archiveArtifacts artifacts: 'cicd/reports/checkov/results.xml', allowEmptyArchive: true
+
       archiveArtifacts artifacts: 'iac/envs/dev/plan.txt', allowEmptyArchive: true
       archiveArtifacts artifacts: 'iac/lambda_artifacts/*.zip', allowEmptyArchive: true
     }
