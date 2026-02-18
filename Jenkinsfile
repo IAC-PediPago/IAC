@@ -164,7 +164,7 @@ pipeline {
 
   post {
     always {
-      archiveArtifacts artifacts: 'cicd/reports/checkov/results.xml', allowEmptyArchive: true
+      archiveArtifacts artifacts: 'cicd/reports/checkov/*.xml', allowEmptyArchive: true
 
       archiveArtifacts artifacts: 'iac/envs/dev/plan.txt', allowEmptyArchive: true
       archiveArtifacts artifacts: 'iac/lambda_artifacts/*.zip', allowEmptyArchive: true
