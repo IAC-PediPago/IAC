@@ -2,7 +2,9 @@
   connection: local
   gather_facts: false
 
+  vars:
+    repo_root: "{{ (playbook_dir ~ '/../..') | realpath }}"
+    checkov_soft_fail: "{{ checkov_soft_fail | default(true) }}"
+
   roles:
     - role: checkov
-      vars:
-        checkov_soft_fail: "{{ checkov_soft_fail | default(true) }}"
