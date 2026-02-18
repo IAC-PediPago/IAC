@@ -1,0 +1,22 @@
+- name: Ensure report folder exists
+  file:
+    path: "{{ repo_root }}/{{ checkov_output_path | dirname }}"
+    state: directory
+
+- name: Pull Checkov image
+  command: docker pull {{ checkov_image }}
+  args:
+    chdir: "{{ repo_root }}"
+
+- name: Run Checkov scan and write junitxml
+  command: >
+    docker run --rm
+    -v "{{ repo_root }}:/tf"
+    --workdir /tf
+    {{ checkov_image }}
+    --directory /tf/{{ checkov_directory }}
+    -o junitxml
+    --output-file-path /tf/{{ checkov_output_path }}
+    {{ '--soft-fail' if checkov_soft_fail | bool else '' }}
+  args:
+    chdir: "{{ repo_root }}"

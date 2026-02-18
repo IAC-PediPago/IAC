@@ -3,3 +3,4 @@ tf_backend_key: "envs/dev/terraform.tfstate"
 tf_backend_region: "us-east-1"
 tf_backend_dynamodb_table: "pedidos-pagos-dev-tf-lock"
 tf_backend_encrypt: true
+repo_root: "{{ playbook_dir }}/../.."
