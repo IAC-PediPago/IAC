@@ -1,4 +1,11 @@
 checkov_image: "bridgecrew/checkov:latest"
 checkov_soft_fail: true
+
+# Carpeta a escanear dentro del repo montado en /tf
 checkov_directory: "iac"
-checkov_output_path: "cicd/reports/checkov/results.xml"
+
+# Directorio donde se guardará el reporte
+checkov_output_dir: "cicd/reports/checkov"
+
+# Nombre final 
+checkov_output_filename: "results.xml"

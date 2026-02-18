@@ -1,6 +1,6 @@
 - name: Ensure report folder exists
   file:
-    path: "{{ repo_root }}/{{ checkov_output_path | dirname }}"
+    path: "{{ repo_root }}/{{ checkov_output_dir }}"
     state: directory
 
 - name: Pull Checkov image
@@ -8,7 +8,7 @@
   args:
     chdir: "{{ repo_root }}"
 
-- name: Run Checkov scan and write junitxml
+- name: Run Checkov scan and write junitxml (to folder)
   command: >
     docker run --rm
     -v "{{ repo_root }}:/tf"
@@ -16,7 +16,30 @@
     {{ checkov_image }}
     --directory /tf/{{ checkov_directory }}
     -o junitxml
-    --output-file-path /tf/{{ checkov_output_path }}
+    --output-file-path /tf/{{ checkov_output_dir }}
     {{ '--soft-fail' if checkov_soft_fail | bool else '' }}
   args:
+    chdir: "{{ repo_root }}"
+
+# Checkov suele crear algo como: results_junitxml.xml dentro del output dir.
+# Aquí lo renombramos a results.xml para que Jenkins lo archive SIEMPRE.
+- name: Normalize Checkov report name to results.xml
+  shell: |
+    set -e
+    OUT_DIR="{{ repo_root }}/{{ checkov_output_dir }}"
+    TARGET="{{ repo_root }}/{{ checkov_output_dir }}/{{ checkov_output_filename }}"
+
+    # encuentra el primer archivo junitxml que genere checkov
+    FOUND="$(ls -1 "$OUT_DIR" | grep -E 'junitxml.*\.xml$' | head -n 1 || true)"
+
+    if [ -z "$FOUND" ]; then
+      echo "No se encontró archivo junitxml en $OUT_DIR"
+      ls -lah "$OUT_DIR" || true
+      exit 1
+    fi
+
+    mv -f "$OUT_DIR/$FOUND" "$TARGET"
+    echo "Reporte normalizado: $TARGET"
+  args:
+    executable: /bin/bash
     chdir: "{{ repo_root }}"
