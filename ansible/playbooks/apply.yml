@@ -1,0 +1,7 @@
+- hosts: local
+  gather_facts: false
+  roles:
+    - role: terraform
+      vars:
+        terraform_action: apply
+        tf_auto_approve: true

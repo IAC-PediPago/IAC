@@ -75,10 +75,29 @@ resource "aws_s3_bucket_policy" "tfstate" {
 }
 
 # --- DynamoDB para lock ---
+# 1. Creamos la clave KMS gestionada por el cliente (CMK)
+resource "aws_kms_key" "dynamo_lock_key" {
+  description             = "Clave para cifrar la tabla de lock de Terraform"
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
+}
+
+# 2. Recurso de DynamoDB actualizado
 resource "aws_dynamodb_table" "tf_lock" {
   name         = local.lock_table_name
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
+
+  # SOLUCIÓN CKV_AWS_119: Cifrado con la clave creada arriba
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.dynamo_lock_key.arn
+  }
+
+  # SOLUCIÓN CKV_AWS_28: Activa la recuperación 
+  point_in_time_recovery {
+    enabled = true
+  }
 
   attribute {
     name = "LockID"

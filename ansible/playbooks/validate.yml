@@ -1,0 +1,6 @@
+- hosts: local
+  gather_facts: false
+  roles:
+    - role: terraform
+      vars:
+        terraform_action: validate

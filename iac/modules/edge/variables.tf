@@ -33,22 +33,22 @@ variable "api_origin_domain" {
 
 # Route53 opcional
 variable "enable_route53" {
-  type        = bool
-  default     = false
+  type    = bool
+  default = false
 }
 
 variable "route53_zone_id" {
-  type        = string
-  default     = ""
+  type    = string
+  default = ""
 }
 
 variable "route53_record_name" {
-  type        = string
-  default     = ""
+  type    = string
+  default = ""
 }
 
 # Certificado opcional (si usas dominio real)
 variable "acm_certificate_arn" {
-  type        = string
-  default     = ""
+  type    = string
+  default = ""
 }

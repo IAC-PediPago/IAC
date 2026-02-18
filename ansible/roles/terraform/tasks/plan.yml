@@ -1,0 +1,39 @@
+- name: Write backend.hcl (remote state)
+  copy:
+    dest: "{{ tf_working_dir }}/backend.hcl"
+    content: |
+      bucket         = "{{ tf_backend_bucket }}"
+      key            = "{{ tf_backend_key }}"
+      region         = "{{ tf_backend_region }}"
+      dynamodb_table = "{{ tf_backend_dynamodb_table }}"
+      encrypt        = {{ tf_backend_encrypt | bool | lower }}
+
+- name: Terraform init (reconfigure backend)
+  command: terraform init -input=false -reconfigure -backend-config=backend.hcl
+  args:
+    chdir: "{{ tf_working_dir }}"
+
+- name: Terraform state list (sanity check)
+  command: terraform state list
+  args:
+    chdir: "{{ tf_working_dir }}"
+  register: state_list
+
+- debug:
+    var: state_list.stdout_lines
+
+- name: Terraform plan (binary)
+  command: terraform plan -input=false -out "{{ tf_plan_file }}"
+  args:
+    chdir: "{{ tf_working_dir }}"
+
+- name: Terraform show (human-readable)
+  command: terraform show -no-color "{{ tf_plan_file }}"
+  args:
+    chdir: "{{ tf_working_dir }}"
+  register: plan_out
+
+- name: Write plan.txt
+  copy:
+    content: "{{ plan_out.stdout }}"
+    dest: "{{ tf_plan_txt }}"

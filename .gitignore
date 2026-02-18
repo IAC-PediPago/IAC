@@ -11,10 +11,21 @@
 # Logs
 *.log
 
-# Node / Frontend
+# Node (general)
 node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
 dist/
+build/
 .vite/
+coverage/
+
+# Env files
 .env
 .env.*
 
@@ -23,3 +34,12 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+
+# Checkov
+tools/checkov/reports/
+tools/checkov/reports/*.json
+reports/
+
+# Lambda artifacts (zips generados)
+iac/lambda_artifacts/*.zip
+lambdas/*.zip

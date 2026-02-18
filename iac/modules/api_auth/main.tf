@@ -54,6 +54,18 @@ resource "aws_apigatewayv2_stage" "default" {
   name        = "$default"
   auto_deploy = true
 
+  depends_on = [
+    aws_apigatewayv2_api.http_api
+  ]
+
+  dynamic "access_log_settings" {
+    for_each = var.enable_access_logs && var.access_log_destination_arn != null && var.access_log_format != null ? [1] : []
+    content {
+      destination_arn = var.access_log_destination_arn
+      format          = var.access_log_format
+    }
+  }
+
   tags = var.tags
 }
 
@@ -65,9 +77,9 @@ locals {
 }
 
 resource "aws_apigatewayv2_authorizer" "jwt" {
-  api_id          = aws_apigatewayv2_api.http_api.id
-  name            = "${var.name_prefix}-jwt-authorizer"
-  authorizer_type = "JWT"
+  api_id           = aws_apigatewayv2_api.http_api.id
+  name             = "${var.name_prefix}-jwt-authorizer"
+  authorizer_type  = "JWT"
   identity_sources = ["$request.header.Authorization"]
 
   jwt_configuration {
