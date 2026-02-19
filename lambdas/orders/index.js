@@ -6,13 +6,19 @@ const { created, ok, badRequest, notFound, serverError, parseJsonBody } = requir
 const { requiredEnv } = require("../shared/validate");
 const { newId } = require("../shared/ids");
 
+function orderKeys(orderId) {
+  // Single-table style: PK/SK
+  const key = `ORDER#${orderId}`;
+  return { PK: key, SK: key };
+}
+
 exports.handler = async (event) => {
   try {
     const ORDERS_TABLE = requiredEnv("ORDERS_TABLE_NAME");
     const SNS_TOPIC_ARN = requiredEnv("SNS_TOPIC_ARN");
 
     const method = event?.requestContext?.http?.method;
-    const routeKey = event?.routeKey; // ej: "POST /orders"
+    const routeKey = event?.routeKey;
     const id = event?.pathParameters?.id;
 
     // POST /orders
@@ -29,7 +35,10 @@ exports.handler = async (event) => {
       const orderId = newId("order");
       const now = new Date().toISOString();
 
+      const keys = orderKeys(orderId);
+
       const order = {
+        ...keys,
         id: orderId,
         status: "CREATED",
         customerName,
@@ -46,7 +55,6 @@ exports.handler = async (event) => {
         })
       );
 
-      // Evento a SNS (mínimo)
       await sns.send(
         new PublishCommand({
           TopicArn: SNS_TOPIC_ARN,
@@ -65,10 +73,12 @@ exports.handler = async (event) => {
     if (routeKey === "GET /orders/{id}" || (method === "GET" && id)) {
       if (!id) return badRequest("Missing path param: id");
 
+      const keys = orderKeys(id);
+
       const res = await ddb.send(
         new GetCommand({
           TableName: ORDERS_TABLE,
-          Key: { id },
+          Key: keys,
         })
       );
 
@@ -91,10 +101,12 @@ exports.handler = async (event) => {
 
       const now = new Date().toISOString();
 
+      const keys = orderKeys(id);
+
       const upd = await ddb.send(
         new UpdateCommand({
           TableName: ORDERS_TABLE,
-          Key: { id },
+          Key: keys,
           UpdateExpression: "SET #s = :s, updatedAt = :u",
           ExpressionAttributeNames: { "#s": "status" },
           ExpressionAttributeValues: { ":s": status, ":u": now },
@@ -102,7 +114,6 @@ exports.handler = async (event) => {
         })
       );
 
-      // Evento
       await sns.send(
         new PublishCommand({
           TopicArn: SNS_TOPIC_ARN,
@@ -120,7 +131,7 @@ exports.handler = async (event) => {
 
     return badRequest("Unsupported route");
   } catch (err) {
-    console.error(err);
-    return serverError("Unhandled error");
+    console.error("Orders error:", err);
+    return serverError(err?.message || "Unhandled error");
   }
 };
