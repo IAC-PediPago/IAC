@@ -44,6 +44,11 @@ variable "products_table_arn" {
 ############################
 # DynamoDB Names (para env vars)
 ############################
+variable "orders_table_name" {
+  type        = string
+  description = "Nombre de la tabla DynamoDB de orders"
+}
+
 variable "products_table_name" {
   type        = string
   description = "Nombre de la tabla DynamoDB de products"

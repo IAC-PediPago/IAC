@@ -99,7 +99,7 @@ module "compute" {
   payments_table_arn = module.dynamodb_tables.payments_table_arn
   products_table_arn = module.dynamodb_tables.products_table_arn
 
-  # ✅ NUEVO: nombre de tabla para env var de la lambda products
+  orders_table_name   = module.dynamodb_tables.orders_table_name
   products_table_name = module.dynamodb_tables.products_table_name
 
   sns_topic_arn           = module.messaging.sns_topic_arn

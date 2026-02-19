@@ -242,7 +242,9 @@ resource "aws_lambda_function" "orders" {
 
   environment {
     variables = {
-      SERVICE_NAME = "orders"
+      SERVICE_NAME      = "orders"
+      ORDERS_TABLE_NAME = var.orders_table_name
+      SNS_TOPIC_ARN     = var.sns_topic_arn
     }
   }
 
