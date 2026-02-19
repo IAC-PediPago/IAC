@@ -42,6 +42,14 @@ variable "products_table_arn" {
 }
 
 ############################
+# DynamoDB Names (para env vars)
+############################
+variable "products_table_name" {
+  type        = string
+  description = "Nombre de la tabla DynamoDB de products"
+}
+
+############################
 # SNS/SQS ARNs
 ############################
 variable "sns_topic_arn" {

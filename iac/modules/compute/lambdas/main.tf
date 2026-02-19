@@ -210,7 +210,7 @@ resource "aws_iam_role_policy" "inventory_inline" {
 resource "aws_lambda_function" "orders" {
   function_name    = "${var.name_prefix}-orders"
   role             = aws_iam_role.orders.arn
-  handler          = "index.handler"
+  handler          = "orders/index.handler"
   runtime          = "nodejs20.x"
   filename         = var.orders_zip_path
   source_code_hash = filebase64sha256(var.orders_zip_path)
@@ -252,7 +252,7 @@ resource "aws_lambda_function" "orders" {
 resource "aws_lambda_function" "payments" {
   function_name    = "${var.name_prefix}-payments"
   role             = aws_iam_role.payments.arn
-  handler          = "index.handler"
+  handler          = "payments/index.handler"
   runtime          = "nodejs20.x"
   filename         = var.payments_zip_path
   source_code_hash = filebase64sha256(var.payments_zip_path)
@@ -281,7 +281,7 @@ resource "aws_lambda_function" "payments" {
 resource "aws_lambda_function" "products" {
   function_name    = "${var.name_prefix}-products"
   role             = aws_iam_role.products.arn
-  handler          = "index.handler"
+  handler          = "products/index.handler"
   runtime          = "nodejs20.x"
   filename         = var.products_zip_path
   source_code_hash = filebase64sha256(var.products_zip_path)
@@ -289,7 +289,8 @@ resource "aws_lambda_function" "products" {
 
   environment {
     variables = {
-      SERVICE_NAME = "products"
+      SERVICE_NAME        = "products"
+      PRODUCTS_TABLE_NAME = var.products_table_name
     }
   }
 
@@ -299,7 +300,7 @@ resource "aws_lambda_function" "products" {
 resource "aws_lambda_function" "notifications_worker" {
   function_name    = "${var.name_prefix}-notifications-worker"
   role             = aws_iam_role.notifications_worker.arn
-  handler          = "index.handler"
+  handler          = "notifications_worker/index.handler"
   runtime          = "nodejs20.x"
   filename         = var.notifications_worker_zip_path
   source_code_hash = filebase64sha256(var.notifications_worker_zip_path)
@@ -317,7 +318,7 @@ resource "aws_lambda_function" "notifications_worker" {
 resource "aws_lambda_function" "inventory_worker" {
   function_name    = "${var.name_prefix}-inventory-worker"
   role             = aws_iam_role.inventory_worker.arn
-  handler          = "index.handler"
+  handler          = "inventory_worker/index.handler"
   runtime          = "nodejs20.x"
   filename         = var.inventory_worker_zip_path
   source_code_hash = filebase64sha256(var.inventory_worker_zip_path)
