@@ -2,52 +2,58 @@
   shell: |
     set -euo pipefail
 
-    echo "==> [checkov] repo_root: {{ repo_root }}"
-    echo "==> [checkov] checkov_directory: {{ checkov_directory }}"
-    echo "==> [checkov] output_dir: {{ checkov_output_dir }}"
-    echo "==> [checkov] output_filename: {{ checkov_output_filename }}"
-    echo "==> [checkov] image: {{ checkov_image }}"
-    echo "==> [checkov] soft_fail: {{ checkov_soft_fail }}"
-
-    # Validar que el repo_root y el directorio a escanear existen
-    if [ ! -d "{{ repo_root }}" ]; then
-      echo "ERROR: repo_root no existe: {{ repo_root }}"
-      exit 1
-    fi
-
-    if [ ! -d "{{ repo_root }}/{{ checkov_directory }}" ]; then
-      echo "ERROR: No existe el directorio a escanear: {{ repo_root }}/{{ checkov_directory }}"
-      echo "Contenido de repo_root:"
-      ls -lah "{{ repo_root }}" || true
-      exit 1
-    fi
-
     OUT_DIR="{{ repo_root }}/{{ checkov_output_dir }}"
     mkdir -p "$OUT_DIR"
 
     OUT_FILE="$OUT_DIR/{{ checkov_output_filename }}"
     TMP_FILE="${OUT_FILE}.tmp"
 
-    echo "==> [checkov] OUT_DIR: $OUT_DIR"
-    echo "==> [checkov] OUT_FILE: $OUT_FILE"
+    echo "==> [checkov] repo_root: {{ repo_root }}"
+    echo "==> [checkov] checkov_directory: {{ checkov_directory }}"
 
-    # Ejecutar checkov y guardar TODO (stdout+stderr) en un tmp
-    docker run --rm \
-      -v "{{ repo_root }}:/tf" \
-      --workdir /tf \
-      {{ checkov_image }} \
-      --directory /tf/{{ checkov_directory }} \
-      -o junitxml \
-      {{ '--soft-fail' if checkov_soft_fail | bool else '' }} \
-      > "$TMP_FILE" 2>&1
+    # Go-template de docker inspect (ESCAPADO para que Ansible/Jinja no lo procese)
+    DOCKER_MOUNT_TPL='{% raw %}{{ range .Mounts }}{{ if eq .Destination "/var/jenkins_home" }}{{ .Name }}{{ end }}{{ end }}{% endraw %}'
 
-    # Validaciones mínimas: que haya salida y que no esté vacío
+    # Detectar el volumen que monta /var/jenkins_home (solo si estamos dentro del contenedor Jenkins)
+    JENKINS_VOL="$(docker inspect -f "$DOCKER_MOUNT_TPL" "$HOSTNAME" 2>/dev/null || true)"
+
+    if [ -n "$JENKINS_VOL" ]; then
+      echo "==> [checkov] Detectado volumen Jenkins: $JENKINS_VOL"
+
+      # Convertir repo_root a path relativo dentro de /var/jenkins_home
+      REPO_REL="{{ repo_root }}"
+      REPO_REL="${REPO_REL#/var/jenkins_home/}"
+
+      CONTAINER_REPO="/tf/${REPO_REL}"
+      SCAN_DIR="${CONTAINER_REPO}/{{ checkov_directory }}"
+
+      echo "==> [checkov] SCAN_DIR (en contenedor): $SCAN_DIR"
+
+      docker run --rm \
+        -v "${JENKINS_VOL}:/tf" \
+        --workdir "$CONTAINER_REPO" \
+        {{ checkov_image }} \
+        --directory "$SCAN_DIR" \
+        -o junitxml \
+        {{ '--soft-fail' if checkov_soft_fail | bool else '' }} \
+        > "$TMP_FILE" 2>&1
+    else
+      echo "==> [checkov] No se detectó volumen Jenkins (modo local). Usando bind-mount."
+      docker run --rm \
+        -v "{{ repo_root }}:/tf" \
+        --workdir /tf \
+        {{ checkov_image }} \
+        --directory /tf/{{ checkov_directory }} \
+        -o junitxml \
+        {{ '--soft-fail' if checkov_soft_fail | bool else '' }} \
+        > "$TMP_FILE" 2>&1
+    fi
+
     if [ ! -s "$TMP_FILE" ]; then
       echo "ERROR: Checkov no generó salida (archivo vacío): $TMP_FILE"
       exit 1
     fi
 
-    # Si la salida trae logs + xml, nos quedamos desde el primer <testsuite... o <testsuites...
     awk 'BEGIN{p=0} /<testsuites|<testsuite/{p=1} {if(p) print}' "$TMP_FILE" > "$OUT_FILE"
 
     if [ ! -s "$OUT_FILE" ]; then
@@ -59,8 +65,8 @@
 
     echo "OK: Reporte generado -> $OUT_FILE"
     ls -lah "$OUT_DIR"
-    echo "==> [checkov] Primeras 20 líneas del XML:"
-    head -n 20 "$OUT_FILE" || true
+    echo "==> [checkov] Primeras 10 líneas:"
+    head -n 10 "$OUT_FILE" || true
   args:
     executable: /bin/bash
     chdir: "{{ repo_root }}"
