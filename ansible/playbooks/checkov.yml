@@ -3,7 +3,7 @@
   gather_facts: false
 
   vars:
-    repo_root: "{{ (playbook_dir ~ '/../..') | realpath }}"
+    repo_root: "{{ lookup('env','WORKSPACE') | default(((playbook_dir ~ '/../..') | realpath), true) }}"
     checkov_soft_fail: "{{ checkov_soft_fail | default(true) }}"
 
   roles:

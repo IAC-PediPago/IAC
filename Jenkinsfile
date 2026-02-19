@@ -109,6 +109,7 @@ pipeline {
         )]) {
           sh '''
             ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/checkov.yml \
+              -e repo_root="$WORKSPACE" \
               -e checkov_soft_fail=${CHECKOV_SOFT_FAIL}
           '''
         }

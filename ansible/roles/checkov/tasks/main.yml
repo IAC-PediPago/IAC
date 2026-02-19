@@ -2,11 +2,34 @@
   shell: |
     set -euo pipefail
 
+    echo "==> [checkov] repo_root: {{ repo_root }}"
+    echo "==> [checkov] checkov_directory: {{ checkov_directory }}"
+    echo "==> [checkov] output_dir: {{ checkov_output_dir }}"
+    echo "==> [checkov] output_filename: {{ checkov_output_filename }}"
+    echo "==> [checkov] image: {{ checkov_image }}"
+    echo "==> [checkov] soft_fail: {{ checkov_soft_fail }}"
+
+    # Validar que el repo_root y el directorio a escanear existen
+    if [ ! -d "{{ repo_root }}" ]; then
+      echo "ERROR: repo_root no existe: {{ repo_root }}"
+      exit 1
+    fi
+
+    if [ ! -d "{{ repo_root }}/{{ checkov_directory }}" ]; then
+      echo "ERROR: No existe el directorio a escanear: {{ repo_root }}/{{ checkov_directory }}"
+      echo "Contenido de repo_root:"
+      ls -lah "{{ repo_root }}" || true
+      exit 1
+    fi
+
     OUT_DIR="{{ repo_root }}/{{ checkov_output_dir }}"
     mkdir -p "$OUT_DIR"
 
     OUT_FILE="$OUT_DIR/{{ checkov_output_filename }}"
     TMP_FILE="${OUT_FILE}.tmp"
+
+    echo "==> [checkov] OUT_DIR: $OUT_DIR"
+    echo "==> [checkov] OUT_FILE: $OUT_FILE"
 
     # Ejecutar checkov y guardar TODO (stdout+stderr) en un tmp
     docker run --rm \
@@ -36,6 +59,8 @@
 
     echo "OK: Reporte generado -> $OUT_FILE"
     ls -lah "$OUT_DIR"
+    echo "==> [checkov] Primeras 20 líneas del XML:"
+    head -n 20 "$OUT_FILE" || true
   args:
     executable: /bin/bash
     chdir: "{{ repo_root }}"
