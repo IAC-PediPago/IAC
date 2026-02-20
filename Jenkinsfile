@@ -12,6 +12,10 @@ pipeline {
     ANSIBLE_CONFIG     = "ansible/ansible.cfg"
     ANSIBLE_ROLES_PATH = "ansible/roles"
     AWS_DEFAULT_REGION = "us-east-1"
+
+    // Sonar host (si Jenkins y Sonar están en docker sobre Windows)
+    SONAR_HOST_URL     = "http://host.docker.internal:9000"
+    SONAR_PROJECT_KEY  = "proyecto-pepa-frontend"
   }
 
   options {
@@ -115,6 +119,21 @@ pipeline {
         }
       }
     }
+    
+    stage('SonarQube - Frontend') {
+      steps {
+        withCredentials([string(credentialsId: 'sonar-frontend-token', variable: 'SONAR_TOKEN')]) {
+          sh '''
+            set -euo pipefail
+            export SONAR_HOST_URL="${SONAR_HOST_URL}"
+            export SONAR_PROJECT_KEY="${SONAR_PROJECT_KEY}"
+            export SONAR_TOKEN="${SONAR_TOKEN}"
+
+            ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/sonar_frontend.yml
+          '''
+        }
+      }
+    }
 
     stage('Plan') {
       steps {
@@ -166,9 +185,10 @@ pipeline {
   post {
     always {
       archiveArtifacts artifacts: 'cicd/reports/checkov/results.xml', allowEmptyArchive: true
-
       archiveArtifacts artifacts: 'iac/envs/dev/plan.txt', allowEmptyArchive: true
       archiveArtifacts artifacts: 'iac/lambda_artifacts/*.zip', allowEmptyArchive: true
+
+      archiveArtifacts artifacts: 'frontend/sonar-project.properties', allowEmptyArchive: true
     }
   }
 }
