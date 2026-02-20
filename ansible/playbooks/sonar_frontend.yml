@@ -1,0 +1,40 @@
+---
+- name: SonarQube scan - Frontend
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    frontend_dir: "{{ playbook_dir }}/../../frontend"
+    sonar_host_url: "{{ lookup('env','SONAR_HOST_URL') | default('http://host.docker.internal:9000', true) }}"
+    sonar_token: "{{ lookup('env','SONAR_TOKEN') }}"
+    sonar_project_key: "{{ lookup('env','SONAR_PROJECT_KEY') | default('proyecto-pepa-frontend', true) }}"
+
+  tasks:
+    - name: Validate SONAR_TOKEN exists
+      ansible.builtin.fail:
+        msg: "Falta SONAR_TOKEN en variables de entorno."
+      when: sonar_token is not defined or sonar_token | length == 0
+
+    - name: Verify frontend directory exists
+      ansible.builtin.stat:
+        path: "{{ frontend_dir }}"
+      register: fe
+
+    - name: Fail if frontend dir not found
+      ansible.builtin.fail:
+        msg: "No existe frontend_dir={{ frontend_dir }}. Revisa rutas."
+      when: not fe.stat.exists
+
+    - name: Run SonarScanner CLI container (Frontend)
+      ansible.builtin.command: >
+        docker run --rm
+        -e SONAR_HOST_URL={{ sonar_host_url }}
+        -e SONAR_TOKEN={{ sonar_token }}
+        -v {{ frontend_dir }}:/usr/src
+        sonarsource/sonar-scanner-cli
+      register: sonar_out
+      changed_when: false
+
+    - name: Print Sonar output
+      ansible.builtin.debug:
+        var: sonar_out.stdout_lines
