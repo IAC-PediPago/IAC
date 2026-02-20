@@ -46,6 +46,8 @@
           - --define
           - "sonar.projectName=Proyecto PePa - Frontend"
           - --define
-          - "sonar.sources=src"
+          - "sonar.sources=."
+          - --define
+          - "sonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/.vite/**,**/.next/**,**/coverage/**,**/*.min.js"
       args:
         chdir: "{{ frontend_dir }}"
