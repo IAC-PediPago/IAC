@@ -120,14 +120,6 @@ pipeline {
       }
     }
 
-    stage('Debug Sonar Credential') {
-      steps {
-        withCredentials([string(credentialsId: 'sonar-frontend-token', variable: 'SONAR_TOKEN')]) {
-          sh 'echo "OK: SONAR_TOKEN length=${#SONAR_TOKEN}"'
-        }
-      }
-    }
-
     stage('SonarQube - Frontend') {
       steps {
         withCredentials([string(credentialsId: 'sonar-frontend-token', variable: 'SONAR_TOKEN')]) {
