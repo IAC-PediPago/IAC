@@ -17,7 +17,7 @@ resource "aws_sqs_queue" "notifications_dlq" {
 
 resource "aws_sqs_queue" "inventory_dlq" {
   name                      = "${var.name_prefix}-inventory-dlq"
-  message_retention_seconds = 1209600
+  message_retention_seconds = 1209600 # 14 días
   tags                      = var.tags
 }
 
@@ -37,7 +37,7 @@ resource "aws_sqs_queue" "notifications_queue" {
 resource "aws_sqs_queue" "inventory_queue" {
   name                       = "${var.name_prefix}-inventory-queue"
   visibility_timeout_seconds = 30
-  message_retention_seconds  = 345600
+  message_retention_seconds  = 345600 # 4 días
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.inventory_dlq.arn
@@ -48,18 +48,27 @@ resource "aws_sqs_queue" "inventory_queue" {
 }
 
 ############################
-# SNS -> SQS Subscriptions
+# SNS -> SQS Subscriptions (CON FILTROS)
 ############################
 resource "aws_sns_topic_subscription" "notifications_sub" {
   topic_arn = aws_sns_topic.events.arn
   protocol  = "sqs"
   endpoint  = aws_sqs_queue.notifications_queue.arn
+
+  # Cada consumer recibe solo los eventos que le tocan
+  filter_policy = jsonencode({
+    eventType = var.notifications_event_types
+  })
 }
 
 resource "aws_sns_topic_subscription" "inventory_sub" {
   topic_arn = aws_sns_topic.events.arn
   protocol  = "sqs"
   endpoint  = aws_sqs_queue.inventory_queue.arn
+
+  filter_policy = jsonencode({
+    eventType = var.inventory_event_types
+  })
 }
 
 ############################
