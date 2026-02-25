@@ -75,6 +75,10 @@ module "messaging" {
   source      = "../../modules/messaging/sns_sqs"
   name_prefix = local.name_prefix
   tags        = var.tags
+
+  # opcional: explícito para que se vea en dev qué eventos van a cada cola
+  notifications_event_types = ["ORDER_CREATED", "ORDER_STATUS_UPDATED", "PAYMENT_CREATED"]
+  inventory_event_types     = ["ORDER_CREATED"]
 }
 
 ############################
