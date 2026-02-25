@@ -138,3 +138,8 @@ variable "lambda_reserved_concurrency" {
   default     = null
   description = "Reserved concurrency para Lambdas. null desactiva (Terraform usa -1 = unreserved)."
 }
+
+variable "payments_table_name" {
+  type        = string
+  description = "Nombre de la tabla DynamoDB de payments"
+}
