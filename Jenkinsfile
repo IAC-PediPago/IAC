@@ -80,9 +80,15 @@ pipeline {
             echo "   OK -> $OUT"
           }
 
-          zip_one "orders"               "orders.zip"
-          zip_one "payments"             "payments.zip"
-          zip_one "products"             "products.zip"
+                    zip_one "orders_create"        "orders_create.zip"
+          zip_one "orders_get"           "orders_get.zip"
+          zip_one "orders_update_status" "orders_update_status.zip"
+
+          zip_one "payments_create"      "payments_create.zip"
+          zip_one "payments_webhook"     "payments_webhook.zip"
+
+          zip_one "products_list"        "products_list.zip"
+
           zip_one "notifications_worker" "notifications_worker.zip"
           zip_one "inventory_worker"     "inventory_worker.zip"
 

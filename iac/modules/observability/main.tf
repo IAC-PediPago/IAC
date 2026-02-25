@@ -6,6 +6,11 @@ resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${each.value}"
   retention_in_days = var.log_retention_days
 
+  # opcional: si no quieres que se borren por destroy accidental
+  lifecycle {
+    prevent_destroy = true
+  }
+
   tags = var.tags
 }
 
@@ -18,6 +23,10 @@ resource "aws_cloudwatch_log_group" "api_access" {
 
   name              = var.api_access_log_group_name
   retention_in_days = var.log_retention_days
+
+  lifecycle {
+    prevent_destroy = true
+  }
 
   tags = var.tags
 }
