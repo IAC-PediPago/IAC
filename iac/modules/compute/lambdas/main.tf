@@ -139,6 +139,7 @@ data "aws_iam_policy_document" "notifications_worker_policy" {
 }
 
 data "aws_iam_policy_document" "inventory_worker_policy" {
+  # Permisos para consumir SQS
   statement {
     effect = "Allow"
     actions = [
@@ -148,6 +149,16 @@ data "aws_iam_policy_document" "inventory_worker_policy" {
       "sqs:ChangeMessageVisibility"
     ]
     resources = [var.inventory_queue_arn]
+  }
+
+  # Permisos mínimos para leer la orden y simular inventario
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:Query"
+    ]
+    resources = [var.orders_table_arn]
   }
 }
 
@@ -273,6 +284,8 @@ resource "aws_lambda_function" "payments" {
   environment {
     variables = {
       SERVICE_NAME        = "payments"
+      PAYMENTS_TABLE_NAME = var.payments_table_name
+      SNS_TOPIC_ARN       = var.sns_topic_arn
       PAYMENTS_SECRET_ARN = var.payments_secret_arn
     }
   }
@@ -328,7 +341,8 @@ resource "aws_lambda_function" "inventory_worker" {
 
   environment {
     variables = {
-      SERVICE_NAME = "inventory_worker"
+      SERVICE_NAME      = "inventory_worker"
+      ORDERS_TABLE_NAME = var.orders_table_name
     }
   }
 
@@ -447,6 +461,9 @@ resource "aws_lambda_event_source_mapping" "notifications" {
   function_name    = aws_lambda_function.notifications_worker.arn
   batch_size       = 10
   enabled          = true
+
+  # Para soportar { batchItemFailures: [...] }
+  function_response_types = ["ReportBatchItemFailures"]
 }
 
 resource "aws_lambda_event_source_mapping" "inventory" {
@@ -454,4 +471,6 @@ resource "aws_lambda_event_source_mapping" "inventory" {
   function_name    = aws_lambda_function.inventory_worker.arn
   batch_size       = 10
   enabled          = true
+
+  function_response_types = ["ReportBatchItemFailures"]
 }

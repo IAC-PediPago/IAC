@@ -111,6 +111,7 @@ module "compute" {
   inventory_queue_arn     = module.messaging.inventory_queue_arn
 
   payments_secret_arn = module.secrets_manager.payments_secret_arn
+  payments_table_name = module.dynamodb_tables.payments_table_name
 
   orders_zip_path               = "${path.module}/../../lambda_artifacts/orders.zip"
   payments_zip_path             = "${path.module}/../../lambda_artifacts/payments.zip"
