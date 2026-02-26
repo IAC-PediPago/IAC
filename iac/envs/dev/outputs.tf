@@ -1,10 +1,5 @@
-output "name_prefix" {
-  value = local.name_prefix
-}
-
-output "account_id" {
-  value = local.account_id
-}
+output "name_prefix" { value = local.name_prefix }
+output "account_id"  { value = local.account_id }
 
 output "frontend_bucket_name" {
   value = module.frontend_hosting.bucket_name
