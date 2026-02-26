@@ -36,20 +36,38 @@ data "aws_iam_policy_document" "lambda_logs" {
 ############################
 # Roles (uno por Lambda)
 ############################
-resource "aws_iam_role" "orders" {
-  name               = "${var.name_prefix}-lambda-orders"
+resource "aws_iam_role" "orders_create" {
+  name               = "${var.name_prefix}-lambda-orders-create"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
   tags               = var.tags
 }
 
-resource "aws_iam_role" "payments" {
-  name               = "${var.name_prefix}-lambda-payments"
+resource "aws_iam_role" "orders_get" {
+  name               = "${var.name_prefix}-lambda-orders-get"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
   tags               = var.tags
 }
 
-resource "aws_iam_role" "products" {
-  name               = "${var.name_prefix}-lambda-products"
+resource "aws_iam_role" "orders_update_status" {
+  name               = "${var.name_prefix}-lambda-orders-update-status"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  tags               = var.tags
+}
+
+resource "aws_iam_role" "payments_create" {
+  name               = "${var.name_prefix}-lambda-payments-create"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  tags               = var.tags
+}
+
+resource "aws_iam_role" "payments_webhook" {
+  name               = "${var.name_prefix}-lambda-payments-webhook"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  tags               = var.tags
+}
+
+resource "aws_iam_role" "products_list" {
+  name               = "${var.name_prefix}-lambda-products-list"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
   tags               = var.tags
 }
@@ -67,20 +85,16 @@ resource "aws_iam_role" "inventory_worker" {
 }
 
 ############################
-# Policies mínimas por dominio
+# Policies (least privilege)
 ############################
-data "aws_iam_policy_document" "orders_policy" {
+
+# Orders Create: PutItem + SNS Publish
+data "aws_iam_policy_document" "orders_create_policy" {
   statement {
-    effect = "Allow"
-    actions = [
-      "dynamodb:GetItem",
-      "dynamodb:PutItem",
-      "dynamodb:UpdateItem",
-      "dynamodb:Query"
-    ]
+    effect    = "Allow"
+    actions   = ["dynamodb:PutItem"]
     resources = [var.orders_table_arn]
   }
-
   statement {
     effect    = "Allow"
     actions   = ["sns:Publish"]
@@ -88,24 +102,41 @@ data "aws_iam_policy_document" "orders_policy" {
   }
 }
 
-data "aws_iam_policy_document" "payments_policy" {
+# Orders Get: GetItem
+data "aws_iam_policy_document" "orders_get_policy" {
   statement {
-    effect = "Allow"
-    actions = [
-      "dynamodb:GetItem",
-      "dynamodb:PutItem",
-      "dynamodb:UpdateItem",
-      "dynamodb:Query"
-    ]
-    resources = [var.payments_table_arn]
+    effect    = "Allow"
+    actions   = ["dynamodb:GetItem"]
+    resources = [var.orders_table_arn]
   }
+}
 
+# Orders Update Status: UpdateItem + SNS Publish
+data "aws_iam_policy_document" "orders_update_status_policy" {
+  statement {
+    effect    = "Allow"
+    actions   = ["dynamodb:UpdateItem"]
+    resources = [var.orders_table_arn]
+  }
   statement {
     effect    = "Allow"
     actions   = ["sns:Publish"]
     resources = [var.sns_topic_arn]
   }
+}
 
+# Payments Create: PutItem + SNS Publish + SecretsManager
+data "aws_iam_policy_document" "payments_create_policy" {
+  statement {
+    effect    = "Allow"
+    actions   = ["dynamodb:PutItem"]
+    resources = [var.payments_table_arn]
+  }
+  statement {
+    effect    = "Allow"
+    actions   = ["sns:Publish"]
+    resources = [var.sns_topic_arn]
+  }
   statement {
     effect    = "Allow"
     actions   = ["secretsmanager:GetSecretValue"]
@@ -113,18 +144,29 @@ data "aws_iam_policy_document" "payments_policy" {
   }
 }
 
-data "aws_iam_policy_document" "products_policy" {
+# Payments Webhook: solo logs (si luego publicas PAYMENT_CONFIRMED, aquí agregas sns:Publish)
+data "aws_iam_policy_document" "payments_webhook_policy" {
+  statement {
+    effect    = "Allow"
+    actions   = []
+    resources = []
+  }
+}
+
+# Products List: Scan/Query/GetItem
+data "aws_iam_policy_document" "products_list_policy" {
   statement {
     effect = "Allow"
     actions = [
-      "dynamodb:GetItem",
+      "dynamodb:Scan",
       "dynamodb:Query",
-      "dynamodb:Scan"
+      "dynamodb:GetItem"
     ]
     resources = [var.products_table_arn]
   }
 }
 
+# Notifications Worker: SQS consume
 data "aws_iam_policy_document" "notifications_worker_policy" {
   statement {
     effect = "Allow"
@@ -138,8 +180,8 @@ data "aws_iam_policy_document" "notifications_worker_policy" {
   }
 }
 
+# Inventory Worker: SQS consume + DynamoDB read Orders
 data "aws_iam_policy_document" "inventory_worker_policy" {
-  # Permisos para consumir SQS
   statement {
     effect = "Allow"
     actions = [
@@ -151,7 +193,6 @@ data "aws_iam_policy_document" "inventory_worker_policy" {
     resources = [var.inventory_queue_arn]
   }
 
-  # Permisos mínimos para leer la orden y simular inventario
   statement {
     effect = "Allow"
     actions = [
@@ -163,43 +204,66 @@ data "aws_iam_policy_document" "inventory_worker_policy" {
 }
 
 ############################
-# Attach logs + policy específica
+# Attach logs + inline policy
 ############################
-resource "aws_iam_role_policy" "orders_logs" {
-  role   = aws_iam_role.orders.id
+resource "aws_iam_role_policy" "orders_create_logs" {
+  role   = aws_iam_role.orders_create.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
-
-resource "aws_iam_role_policy" "orders_inline" {
-  role   = aws_iam_role.orders.id
-  policy = data.aws_iam_policy_document.orders_policy.json
+resource "aws_iam_role_policy" "orders_create_inline" {
+  role   = aws_iam_role.orders_create.id
+  policy = data.aws_iam_policy_document.orders_create_policy.json
 }
 
-resource "aws_iam_role_policy" "payments_logs" {
-  role   = aws_iam_role.payments.id
+resource "aws_iam_role_policy" "orders_get_logs" {
+  role   = aws_iam_role.orders_get.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
-
-resource "aws_iam_role_policy" "payments_inline" {
-  role   = aws_iam_role.payments.id
-  policy = data.aws_iam_policy_document.payments_policy.json
+resource "aws_iam_role_policy" "orders_get_inline" {
+  role   = aws_iam_role.orders_get.id
+  policy = data.aws_iam_policy_document.orders_get_policy.json
 }
 
-resource "aws_iam_role_policy" "products_logs" {
-  role   = aws_iam_role.products.id
+resource "aws_iam_role_policy" "orders_update_status_logs" {
+  role   = aws_iam_role.orders_update_status.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
+resource "aws_iam_role_policy" "orders_update_status_inline" {
+  role   = aws_iam_role.orders_update_status.id
+  policy = data.aws_iam_policy_document.orders_update_status_policy.json
+}
 
-resource "aws_iam_role_policy" "products_inline" {
-  role   = aws_iam_role.products.id
-  policy = data.aws_iam_policy_document.products_policy.json
+resource "aws_iam_role_policy" "payments_create_logs" {
+  role   = aws_iam_role.payments_create.id
+  policy = data.aws_iam_policy_document.lambda_logs.json
+}
+resource "aws_iam_role_policy" "payments_create_inline" {
+  role   = aws_iam_role.payments_create.id
+  policy = data.aws_iam_policy_document.payments_create_policy.json
+}
+
+resource "aws_iam_role_policy" "payments_webhook_logs" {
+  role   = aws_iam_role.payments_webhook.id
+  policy = data.aws_iam_policy_document.lambda_logs.json
+}
+resource "aws_iam_role_policy" "payments_webhook_inline" {
+  role   = aws_iam_role.payments_webhook.id
+  policy = data.aws_iam_policy_document.payments_webhook_policy.json
+}
+
+resource "aws_iam_role_policy" "products_list_logs" {
+  role   = aws_iam_role.products_list.id
+  policy = data.aws_iam_policy_document.lambda_logs.json
+}
+resource "aws_iam_role_policy" "products_list_inline" {
+  role   = aws_iam_role.products_list.id
+  policy = data.aws_iam_policy_document.products_list_policy.json
 }
 
 resource "aws_iam_role_policy" "notifications_logs" {
   role   = aws_iam_role.notifications_worker.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
-
 resource "aws_iam_role_policy" "notifications_inline" {
   role   = aws_iam_role.notifications_worker.id
   policy = data.aws_iam_policy_document.notifications_worker_policy.json
@@ -209,7 +273,6 @@ resource "aws_iam_role_policy" "inventory_logs" {
   role   = aws_iam_role.inventory_worker.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
-
 resource "aws_iam_role_policy" "inventory_inline" {
   role   = aws_iam_role.inventory_worker.id
   policy = data.aws_iam_policy_document.inventory_worker_policy.json
@@ -218,22 +281,21 @@ resource "aws_iam_role_policy" "inventory_inline" {
 ############################
 # Lambdas (ZIP)
 ############################
-resource "aws_lambda_function" "orders" {
-  function_name    = "${var.name_prefix}-orders"
-  role             = aws_iam_role.orders.arn
-  handler          = "orders/index.handler"
+
+resource "aws_lambda_function" "orders_create" {
+  function_name    = "${var.name_prefix}-orders-create"
+  role             = aws_iam_role.orders_create.arn
+  handler          = "orders_create/index.handler"
   runtime          = "nodejs20.x"
-  filename         = var.orders_zip_path
-  source_code_hash = filebase64sha256(var.orders_zip_path)
+  filename         = var.orders_create_zip_path
+  source_code_hash = filebase64sha256(var.orders_create_zip_path)
   timeout          = 10
 
   reserved_concurrent_executions = var.lambda_reserved_concurrency != null ? var.lambda_reserved_concurrency : -1
 
   dynamic "dead_letter_config" {
     for_each = var.dlq_arn != null ? [1] : []
-    content {
-      target_arn = var.dlq_arn
-    }
+    content { target_arn = var.dlq_arn }
   }
 
   dynamic "vpc_config" {
@@ -244,16 +306,13 @@ resource "aws_lambda_function" "orders" {
     }
   }
 
-  tracing_config {
-    mode = "Active"
-  }
-
+  tracing_config { mode = "Active" }
   code_signing_config_arn = var.code_signing_config_arn
   kms_key_arn             = var.lambda_kms_key_arn
 
   environment {
     variables = {
-      SERVICE_NAME      = "orders"
+      SERVICE_NAME      = "orders_create"
       ORDERS_TABLE_NAME = var.orders_table_name
       SNS_TOPIC_ARN     = var.sns_topic_arn
     }
@@ -262,13 +321,13 @@ resource "aws_lambda_function" "orders" {
   tags = var.tags
 }
 
-resource "aws_lambda_function" "payments" {
-  function_name    = "${var.name_prefix}-payments"
-  role             = aws_iam_role.payments.arn
-  handler          = "payments/index.handler"
+resource "aws_lambda_function" "orders_get" {
+  function_name    = "${var.name_prefix}-orders-get"
+  role             = aws_iam_role.orders_get.arn
+  handler          = "orders_get/index.handler"
   runtime          = "nodejs20.x"
-  filename         = var.payments_zip_path
-  source_code_hash = filebase64sha256(var.payments_zip_path)
+  filename         = var.orders_get_zip_path
+  source_code_hash = filebase64sha256(var.orders_get_zip_path)
   timeout          = 10
 
   reserved_concurrent_executions = var.lambda_reserved_concurrency != null ? var.lambda_reserved_concurrency : -1
@@ -281,9 +340,80 @@ resource "aws_lambda_function" "payments" {
     }
   }
 
+  tracing_config { mode = "Active" }
+  code_signing_config_arn = var.code_signing_config_arn
+  kms_key_arn             = var.lambda_kms_key_arn
+
   environment {
     variables = {
-      SERVICE_NAME        = "payments"
+      SERVICE_NAME      = "orders_get"
+      ORDERS_TABLE_NAME = var.orders_table_name
+    }
+  }
+
+  tags = var.tags
+}
+
+resource "aws_lambda_function" "orders_update_status" {
+  function_name    = "${var.name_prefix}-orders-update-status"
+  role             = aws_iam_role.orders_update_status.arn
+  handler          = "orders_update_status/index.handler"
+  runtime          = "nodejs20.x"
+  filename         = var.orders_update_status_zip_path
+  source_code_hash = filebase64sha256(var.orders_update_status_zip_path)
+  timeout          = 10
+
+  reserved_concurrent_executions = var.lambda_reserved_concurrency != null ? var.lambda_reserved_concurrency : -1
+
+  dynamic "vpc_config" {
+    for_each = (var.security_group_id != null && length(var.subnet_ids) > 0) ? [1] : []
+    content {
+      subnet_ids         = var.subnet_ids
+      security_group_ids = [var.security_group_id]
+    }
+  }
+
+  tracing_config { mode = "Active" }
+  code_signing_config_arn = var.code_signing_config_arn
+  kms_key_arn             = var.lambda_kms_key_arn
+
+  environment {
+    variables = {
+      SERVICE_NAME      = "orders_update_status"
+      ORDERS_TABLE_NAME = var.orders_table_name
+      SNS_TOPIC_ARN     = var.sns_topic_arn
+    }
+  }
+
+  tags = var.tags
+}
+
+resource "aws_lambda_function" "payments_create" {
+  function_name    = "${var.name_prefix}-payments-create"
+  role             = aws_iam_role.payments_create.arn
+  handler          = "payments_create/index.handler"
+  runtime          = "nodejs20.x"
+  filename         = var.payments_create_zip_path
+  source_code_hash = filebase64sha256(var.payments_create_zip_path)
+  timeout          = 10
+
+  reserved_concurrent_executions = var.lambda_reserved_concurrency != null ? var.lambda_reserved_concurrency : -1
+
+  dynamic "vpc_config" {
+    for_each = (var.security_group_id != null && length(var.subnet_ids) > 0) ? [1] : []
+    content {
+      subnet_ids         = var.subnet_ids
+      security_group_ids = [var.security_group_id]
+    }
+  }
+
+  tracing_config { mode = "Active" }
+  code_signing_config_arn = var.code_signing_config_arn
+  kms_key_arn             = var.lambda_kms_key_arn
+
+  environment {
+    variables = {
+      SERVICE_NAME        = "payments_create"
       PAYMENTS_TABLE_NAME = var.payments_table_name
       SNS_TOPIC_ARN       = var.sns_topic_arn
       PAYMENTS_SECRET_ARN = var.payments_secret_arn
@@ -293,18 +423,64 @@ resource "aws_lambda_function" "payments" {
   tags = var.tags
 }
 
-resource "aws_lambda_function" "products" {
-  function_name    = "${var.name_prefix}-products"
-  role             = aws_iam_role.products.arn
-  handler          = "products/index.handler"
+resource "aws_lambda_function" "payments_webhook" {
+  function_name    = "${var.name_prefix}-payments-webhook"
+  role             = aws_iam_role.payments_webhook.arn
+  handler          = "payments_webhook/index.handler"
   runtime          = "nodejs20.x"
-  filename         = var.products_zip_path
-  source_code_hash = filebase64sha256(var.products_zip_path)
+  filename         = var.payments_webhook_zip_path
+  source_code_hash = filebase64sha256(var.payments_webhook_zip_path)
   timeout          = 10
+
+  reserved_concurrent_executions = var.lambda_reserved_concurrency != null ? var.lambda_reserved_concurrency : -1
+
+  dynamic "vpc_config" {
+    for_each = (var.security_group_id != null && length(var.subnet_ids) > 0) ? [1] : []
+    content {
+      subnet_ids         = var.subnet_ids
+      security_group_ids = [var.security_group_id]
+    }
+  }
+
+  tracing_config { mode = "Active" }
+  code_signing_config_arn = var.code_signing_config_arn
+  kms_key_arn             = var.lambda_kms_key_arn
 
   environment {
     variables = {
-      SERVICE_NAME        = "products"
+      SERVICE_NAME = "payments_webhook"
+    }
+  }
+
+  tags = var.tags
+}
+
+resource "aws_lambda_function" "products_list" {
+  function_name    = "${var.name_prefix}-products-list"
+  role             = aws_iam_role.products_list.arn
+  handler          = "products_list/index.handler"
+  runtime          = "nodejs20.x"
+  filename         = var.products_list_zip_path
+  source_code_hash = filebase64sha256(var.products_list_zip_path)
+  timeout          = 10
+
+  reserved_concurrent_executions = var.lambda_reserved_concurrency != null ? var.lambda_reserved_concurrency : -1
+
+  dynamic "vpc_config" {
+    for_each = (var.security_group_id != null && length(var.subnet_ids) > 0) ? [1] : []
+    content {
+      subnet_ids         = var.subnet_ids
+      security_group_ids = [var.security_group_id]
+    }
+  }
+
+  tracing_config { mode = "Active" }
+  code_signing_config_arn = var.code_signing_config_arn
+  kms_key_arn             = var.lambda_kms_key_arn
+
+  environment {
+    variables = {
+      SERVICE_NAME        = "products_list"
       PRODUCTS_TABLE_NAME = var.products_table_name
     }
   }
@@ -322,9 +498,7 @@ resource "aws_lambda_function" "notifications_worker" {
   timeout          = 10
 
   environment {
-    variables = {
-      SERVICE_NAME = "notifications_worker"
-    }
+    variables = { SERVICE_NAME = "notifications_worker" }
   }
 
   tags = var.tags
@@ -352,24 +526,45 @@ resource "aws_lambda_function" "inventory_worker" {
 ############################
 # API GW v2: Integrations
 ############################
-resource "aws_apigatewayv2_integration" "orders" {
+resource "aws_apigatewayv2_integration" "orders_create" {
   api_id                 = var.api_id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.orders.arn
+  integration_uri        = aws_lambda_function.orders_create.arn
   payload_format_version = "2.0"
 }
 
-resource "aws_apigatewayv2_integration" "payments" {
+resource "aws_apigatewayv2_integration" "orders_get" {
   api_id                 = var.api_id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.payments.arn
+  integration_uri        = aws_lambda_function.orders_get.arn
   payload_format_version = "2.0"
 }
 
-resource "aws_apigatewayv2_integration" "products" {
+resource "aws_apigatewayv2_integration" "orders_update_status" {
   api_id                 = var.api_id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.products.arn
+  integration_uri        = aws_lambda_function.orders_update_status.arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_integration" "payments_create" {
+  api_id                 = var.api_id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.payments_create.arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_integration" "payments_webhook" {
+  api_id                 = var.api_id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.payments_webhook.arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_integration" "products_list" {
+  api_id                 = var.api_id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.products_list.arn
   payload_format_version = "2.0"
 }
 
@@ -379,7 +574,7 @@ resource "aws_apigatewayv2_integration" "products" {
 resource "aws_apigatewayv2_route" "orders_post" {
   api_id             = var.api_id
   route_key          = "POST /orders"
-  target             = "integrations/${aws_apigatewayv2_integration.orders.id}"
+  target             = "integrations/${aws_apigatewayv2_integration.orders_create.id}"
   authorization_type = "JWT"
   authorizer_id      = var.authorizer_id
 }
@@ -387,7 +582,7 @@ resource "aws_apigatewayv2_route" "orders_post" {
 resource "aws_apigatewayv2_route" "orders_get" {
   api_id             = var.api_id
   route_key          = "GET /orders/{id}"
-  target             = "integrations/${aws_apigatewayv2_integration.orders.id}"
+  target             = "integrations/${aws_apigatewayv2_integration.orders_get.id}"
   authorization_type = "JWT"
   authorizer_id      = var.authorizer_id
 }
@@ -395,7 +590,7 @@ resource "aws_apigatewayv2_route" "orders_get" {
 resource "aws_apigatewayv2_route" "orders_status_put" {
   api_id             = var.api_id
   route_key          = "PUT /orders/{id}/status"
-  target             = "integrations/${aws_apigatewayv2_integration.orders.id}"
+  target             = "integrations/${aws_apigatewayv2_integration.orders_update_status.id}"
   authorization_type = "JWT"
   authorizer_id      = var.authorizer_id
 }
@@ -403,7 +598,7 @@ resource "aws_apigatewayv2_route" "orders_status_put" {
 resource "aws_apigatewayv2_route" "payments_post" {
   api_id             = var.api_id
   route_key          = "POST /payments"
-  target             = "integrations/${aws_apigatewayv2_integration.payments.id}"
+  target             = "integrations/${aws_apigatewayv2_integration.payments_create.id}"
   authorization_type = "JWT"
   authorizer_id      = var.authorizer_id
 }
@@ -411,14 +606,14 @@ resource "aws_apigatewayv2_route" "payments_post" {
 resource "aws_apigatewayv2_route" "payments_webhook_post" {
   api_id             = var.api_id
   route_key          = "POST /payments/webhook"
-  target             = "integrations/${aws_apigatewayv2_integration.payments.id}"
+  target             = "integrations/${aws_apigatewayv2_integration.payments_webhook.id}"
   authorization_type = "NONE"
 }
 
 resource "aws_apigatewayv2_route" "products_get" {
   api_id             = var.api_id
   route_key          = "GET /products"
-  target             = "integrations/${aws_apigatewayv2_integration.products.id}"
+  target             = "integrations/${aws_apigatewayv2_integration.products_list.id}"
   authorization_type = "JWT"
   authorizer_id      = var.authorizer_id
 }
@@ -426,31 +621,52 @@ resource "aws_apigatewayv2_route" "products_get" {
 ############################
 # Permiso: API GW -> Lambda
 ############################
-resource "aws_lambda_permission" "orders_invoke" {
-  statement_id  = "AllowInvokeFromAPIGWOrders"
+resource "aws_lambda_permission" "orders_create_invoke" {
+  statement_id  = "AllowInvokeFromAPIGWOrdersCreate"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.orders.function_name
+  function_name = aws_lambda_function.orders_create.function_name
   principal     = "apigateway.amazonaws.com"
-
-  source_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
+  source_arn    = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
 }
 
-resource "aws_lambda_permission" "payments_invoke" {
-  statement_id  = "AllowInvokeFromAPIGWPayments"
+resource "aws_lambda_permission" "orders_get_invoke" {
+  statement_id  = "AllowInvokeFromAPIGWOrdersGet"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.payments.function_name
+  function_name = aws_lambda_function.orders_get.function_name
   principal     = "apigateway.amazonaws.com"
-
-  source_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
+  source_arn    = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
 }
 
-resource "aws_lambda_permission" "products_invoke" {
-  statement_id  = "AllowInvokeFromAPIGWProducts"
+resource "aws_lambda_permission" "orders_update_status_invoke" {
+  statement_id  = "AllowInvokeFromAPIGWOrdersUpdateStatus"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.products.function_name
+  function_name = aws_lambda_function.orders_update_status.function_name
   principal     = "apigateway.amazonaws.com"
+  source_arn    = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
+}
 
-  source_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
+resource "aws_lambda_permission" "payments_create_invoke" {
+  statement_id  = "AllowInvokeFromAPIGWPaymentsCreate"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.payments_create.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
+}
+
+resource "aws_lambda_permission" "payments_webhook_invoke" {
+  statement_id  = "AllowInvokeFromAPIGWPaymentsWebhook"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.payments_webhook.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
+}
+
+resource "aws_lambda_permission" "products_list_invoke" {
+  statement_id  = "AllowInvokeFromAPIGWProductsList"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.products_list.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_id}/*/*"
 }
 
 ############################
@@ -461,8 +677,6 @@ resource "aws_lambda_event_source_mapping" "notifications" {
   function_name    = aws_lambda_function.notifications_worker.arn
   batch_size       = 10
   enabled          = true
-
-  # Para soportar { batchItemFailures: [...] }
   function_response_types = ["ReportBatchItemFailures"]
 }
 
@@ -471,6 +685,5 @@ resource "aws_lambda_event_source_mapping" "inventory" {
   function_name    = aws_lambda_function.inventory_worker.arn
   batch_size       = 10
   enabled          = true
-
   function_response_types = ["ReportBatchItemFailures"]
 }

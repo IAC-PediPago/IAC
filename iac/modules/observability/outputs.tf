@@ -5,10 +5,10 @@ output "lambda_log_group_names" {
 
 output "api_access_log_group_name" {
   description = "Nombre del log group de access logs del HTTP API (si aplica)"
-  value       = length(aws_cloudwatch_log_group.api_access) > 0 ? aws_cloudwatch_log_group.api_access[0].name : null
+  value       = try(aws_cloudwatch_log_group.api_access[0].name, null)
 }
 
 output "api_access_log_group_arn" {
   description = "ARN del log group de access logs del HTTP API (si aplica)"
-  value       = length(aws_cloudwatch_log_group.api_access) > 0 ? aws_cloudwatch_log_group.api_access[0].arn : null
+  value       = try(aws_cloudwatch_log_group.api_access[0].arn, null)
 }

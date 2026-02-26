@@ -5,7 +5,7 @@ variable "name_prefix" {
 
 variable "aws_region" {
   type        = string
-  description = "Región (us-east-1)"
+  description = "Región AWS (ej: us-east-1)"
 }
 
 variable "tags" {

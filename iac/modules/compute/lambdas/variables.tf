@@ -49,6 +49,11 @@ variable "orders_table_name" {
   description = "Nombre de la tabla DynamoDB de orders"
 }
 
+variable "payments_table_name" {
+  type        = string
+  description = "Nombre de la tabla DynamoDB de payments"
+}
+
 variable "products_table_name" {
   type        = string
   description = "Nombre de la tabla DynamoDB de products"
@@ -70,20 +75,41 @@ variable "inventory_queue_arn" {
 }
 
 ############################
-# ZIP paths
+# ZIP paths (Lambdas separadas)
 ############################
-variable "orders_zip_path" {
-  type = string
+variable "orders_create_zip_path" {
+  type        = string
+  description = "Path al ZIP de orders_create"
 }
 
-variable "payments_zip_path" {
-  type = string
+variable "orders_get_zip_path" {
+  type        = string
+  description = "Path al ZIP de orders_get"
 }
 
-variable "products_zip_path" {
-  type = string
+variable "orders_update_status_zip_path" {
+  type        = string
+  description = "Path al ZIP de orders_update_status"
 }
 
+variable "payments_create_zip_path" {
+  type        = string
+  description = "Path al ZIP de payments_create"
+}
+
+variable "payments_webhook_zip_path" {
+  type        = string
+  description = "Path al ZIP de payments_webhook"
+}
+
+variable "products_list_zip_path" {
+  type        = string
+  description = "Path al ZIP de products_list"
+}
+
+############################
+# ZIP paths (Workers)
+############################
 variable "notifications_worker_zip_path" {
   type = string
 }
@@ -137,9 +163,4 @@ variable "lambda_reserved_concurrency" {
   type        = number
   default     = null
   description = "Reserved concurrency para Lambdas. null desactiva (Terraform usa -1 = unreserved)."
-}
-
-variable "payments_table_name" {
-  type        = string
-  description = "Nombre de la tabla DynamoDB de payments"
 }

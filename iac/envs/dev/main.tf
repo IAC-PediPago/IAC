@@ -15,9 +15,12 @@ module "observability" {
 
   # Nombres determinísticos (no depende del módulo compute)
   lambda_function_names = [
-    "${local.name_prefix}-orders",
-    "${local.name_prefix}-payments",
-    "${local.name_prefix}-products",
+    "${local.name_prefix}-orders-create",
+    "${local.name_prefix}-orders-get",
+    "${local.name_prefix}-orders-update-status",
+    "${local.name_prefix}-payments-create",
+    "${local.name_prefix}-payments-webhook",
+    "${local.name_prefix}-products-list",
     "${local.name_prefix}-notifications-worker",
     "${local.name_prefix}-inventory-worker"
   ]
@@ -104,6 +107,7 @@ module "compute" {
   products_table_arn = module.dynamodb_tables.products_table_arn
 
   orders_table_name   = module.dynamodb_tables.orders_table_name
+  payments_table_name = module.dynamodb_tables.payments_table_name
   products_table_name = module.dynamodb_tables.products_table_name
 
   sns_topic_arn           = module.messaging.sns_topic_arn
@@ -111,11 +115,18 @@ module "compute" {
   inventory_queue_arn     = module.messaging.inventory_queue_arn
 
   payments_secret_arn = module.secrets_manager.payments_secret_arn
-  payments_table_name = module.dynamodb_tables.payments_table_name
 
-  orders_zip_path               = "${path.module}/../../lambda_artifacts/orders.zip"
-  payments_zip_path             = "${path.module}/../../lambda_artifacts/payments.zip"
-  products_zip_path             = "${path.module}/../../lambda_artifacts/products.zip"
+  # ZIPs (Lambdas separadas)
+  orders_create_zip_path        = "${path.module}/../../lambda_artifacts/orders_create.zip"
+  orders_get_zip_path           = "${path.module}/../../lambda_artifacts/orders_get.zip"
+  orders_update_status_zip_path = "${path.module}/../../lambda_artifacts/orders_update_status.zip"
+
+  payments_create_zip_path  = "${path.module}/../../lambda_artifacts/payments_create.zip"
+  payments_webhook_zip_path = "${path.module}/../../lambda_artifacts/payments_webhook.zip"
+
+  products_list_zip_path = "${path.module}/../../lambda_artifacts/products_list.zip"
+
+  # ZIPs (Workers)
   notifications_worker_zip_path = "${path.module}/../../lambda_artifacts/notifications_worker.zip"
   inventory_worker_zip_path     = "${path.module}/../../lambda_artifacts/inventory_worker.zip"
 
