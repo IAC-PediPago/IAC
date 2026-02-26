@@ -4,9 +4,8 @@ repo_root: "{{ playbook_dir }}/../.."
 # Terraform env dir
 tf_working_dir: "{{ repo_root }}/iac/envs/dev"
 
-# Artifact del plan
-tf_plan_file: "{{ tf_working_dir }}/tfplan"
-tf_plan_txt: "{{ tf_working_dir }}/plan.txt"
+tf_plan_file: "tfplan"
+tf_plan_txt: "plan.txt"
 
 # Flags
 tf_auto_approve: false

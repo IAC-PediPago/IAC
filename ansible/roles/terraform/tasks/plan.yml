@@ -33,10 +33,16 @@
   debug:
     var: state_list.stdout_lines
 
+# ✅ Evitar rutas duplicadas: si defaults trae path completo, tomamos basename
+- name: Normalize plan output paths
+  set_fact:
+    tf_plan_file_rel: "{{ tf_plan_file | basename }}"
+    tf_plan_txt_rel: "{{ tf_plan_txt | basename }}"
+
 # Clave: permitir rc 0 (sin cambios) y rc 2 (hay cambios)
 # y fallar solo si rc es otro valor.
 - name: Terraform plan (binary) - allow detailed exit codes
-  command: terraform plan -input=false -detailed-exitcode -out "{{ tf_plan_file }}"
+  command: terraform plan -input=false -detailed-exitcode -out "{{ tf_plan_file_rel }}"
   args:
     chdir: "{{ tf_working_dir }}"
   register: tf_plan
@@ -50,8 +56,21 @@
   set_fact:
     tf_plan_has_changes: "{{ tf_plan.rc == 2 }}"
 
+# ✅ Validación clara: si no se generó el plan, falla con mensaje entendible
+- name: Check plan file exists
+  stat:
+    path: "{{ tf_working_dir }}/{{ tf_plan_file_rel }}"
+  register: plan_stat
+
+- name: Fail if plan file was not generated
+  fail:
+    msg: >-
+      Plan file not found: {{ tf_working_dir }}/{{ tf_plan_file_rel }}.
+      (tf_working_dir={{ tf_working_dir }}, tf_plan_file={{ tf_plan_file }})
+  when: not plan_stat.stat.exists
+
 - name: Terraform show (human-readable)
-  command: terraform show -no-color "{{ tf_plan_file }}"
+  command: terraform show -no-color "{{ tf_plan_file_rel }}"
   args:
     chdir: "{{ tf_working_dir }}"
   register: plan_out
@@ -64,10 +83,10 @@
 - name: Write plan.txt
   copy:
     content: "{{ plan_out.stdout }}"
-    dest: "{{ tf_plan_txt }}"
+    dest: "{{ tf_working_dir }}/{{ tf_plan_txt_rel }}"
 
 - name: Plan summary
   debug:
     msg: >-
       Terraform plan finished. Changes detected={{ tf_plan_has_changes }}
-      (rc={{ tf_plan.rc }}). Plan saved to {{ tf_plan_txt }}.
+      (rc={{ tf_plan.rc }}). Plan saved to {{ tf_working_dir }}/{{ tf_plan_txt_rel }}.

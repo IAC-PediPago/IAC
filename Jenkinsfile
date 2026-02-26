@@ -23,7 +23,7 @@ pipeline {
   }
 
   options {
-    skipDefaultCheckout(true)     // evita el checkout automático duplicado
+    skipDefaultCheckout(true)
     timestamps()
     ansiColor('xterm')
     disableConcurrentBuilds()
@@ -157,7 +157,11 @@ pipeline {
           sh '''
             set -euo pipefail
             echo "==> Running terraform plan via Ansible..."
-            ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/plan.yml
+
+            # ✅ Forzar callback "default" SOLO en Jenkins para ver errores completos
+            export ANSIBLE_STDOUT_CALLBACK=default
+
+            ansible-playbook -v -i ansible/inventories/dev/hosts.ini ansible/playbooks/plan.yml
 
             echo "==> Plan summary:"
             grep -n "Plan:" iac/envs/dev/plan.txt | head || true
