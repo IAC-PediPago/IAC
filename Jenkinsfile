@@ -13,12 +13,17 @@ pipeline {
     ANSIBLE_ROLES_PATH = "ansible/roles"
     AWS_DEFAULT_REGION = "us-east-1"
 
+    // Terraform in automation
+    TF_IN_AUTOMATION   = "true"
+    TF_INPUT           = "0"
+
     // Sonar host (si Jenkins y Sonar están en docker sobre Windows)
     SONAR_HOST_URL     = "http://host.docker.internal:9000"
     SONAR_PROJECT_KEY  = "proyecto-pepa-frontend"
   }
 
   options {
+    skipDefaultCheckout(true)     // <-- evita el checkout automático duplicado
     timestamps()
     ansiColor('xterm')
     disableConcurrentBuilds()
@@ -32,7 +37,7 @@ pipeline {
     stage('Sanity: Tools') {
       steps {
         sh '''
-          set -e
+          set -euo pipefail
           whoami
           ansible --version
           terraform -version
@@ -80,7 +85,7 @@ pipeline {
             echo "   OK -> $OUT"
           }
 
-                    zip_one "orders_create"        "orders_create.zip"
+          zip_one "orders_create"        "orders_create.zip"
           zip_one "orders_get"           "orders_get.zip"
           zip_one "orders_update_status" "orders_update_status.zip"
 
@@ -105,6 +110,7 @@ pipeline {
           passwordVariable: 'AWS_SECRET_ACCESS_KEY'
         )]) {
           sh '''
+            set -euo pipefail
             ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/validate.yml
           '''
         }
@@ -118,6 +124,7 @@ pipeline {
           passwordVariable: 'AWS_SECRET_ACCESS_KEY'
         )]) {
           sh '''
+            set -euo pipefail
             ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/checkov.yml \
               -e repo_root="$WORKSPACE" \
               -e checkov_soft_fail=${CHECKOV_SOFT_FAIL}
@@ -148,6 +155,7 @@ pipeline {
           passwordVariable: 'AWS_SECRET_ACCESS_KEY'
         )]) {
           sh '''
+            set -euo pipefail
             ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/plan.yml
             grep -n "Plan:" iac/envs/dev/plan.txt | head || true
           '''
@@ -164,6 +172,7 @@ pipeline {
           passwordVariable: 'AWS_SECRET_ACCESS_KEY'
         )]) {
           sh '''
+            set -euo pipefail
             ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/apply.yml \
               -e tf_auto_approve=${AUTO_APPROVE}
           '''
@@ -180,6 +189,7 @@ pipeline {
           passwordVariable: 'AWS_SECRET_ACCESS_KEY'
         )]) {
           sh '''
+            set -euo pipefail
             ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/destroy.yml \
               -e tf_auto_approve=${AUTO_APPROVE}
           '''
@@ -193,7 +203,6 @@ pipeline {
       archiveArtifacts artifacts: 'cicd/reports/checkov/results.xml', allowEmptyArchive: true
       archiveArtifacts artifacts: 'iac/envs/dev/plan.txt', allowEmptyArchive: true
       archiveArtifacts artifacts: 'iac/lambda_artifacts/*.zip', allowEmptyArchive: true
-
       archiveArtifacts artifacts: 'frontend/sonar-project.properties', allowEmptyArchive: true
     }
   }
