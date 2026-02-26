@@ -22,13 +22,14 @@
 - debug:
     var: state_list.stdout_lines
 
+# Nombre del binario del plan SIEMPRE dentro del working dir
 - name: Terraform plan (binary)
-  command: terraform plan -input=false -out "{{ tf_plan_file }}"
+  command: terraform plan -input=false -out=tfplan
   args:
     chdir: "{{ tf_working_dir }}"
 
 - name: Terraform show (human-readable)
-  command: terraform show -no-color "{{ tf_plan_file }}"
+  command: terraform show -no-color tfplan
   args:
     chdir: "{{ tf_working_dir }}"
   register: plan_out
@@ -36,4 +37,4 @@
 - name: Write plan.txt
   copy:
     content: "{{ plan_out.stdout }}"
-    dest: "{{ tf_plan_txt }}"
+    dest: "{{ tf_working_dir }}/plan.txt"
