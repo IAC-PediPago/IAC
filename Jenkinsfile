@@ -218,6 +218,7 @@ pipeline {
 
       archiveArtifacts artifacts: 'iac/lambda_artifacts/*.zip', allowEmptyArchive: true
       archiveArtifacts artifacts: 'frontend/sonar-project.properties', allowEmptyArchive: true
+      archiveArtifacts artifacts: 'iac/envs/dev/plan_debug.txt', allowEmptyArchive: true
     }
   }
 }
