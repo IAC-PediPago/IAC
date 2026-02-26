@@ -23,7 +23,7 @@ pipeline {
   }
 
   options {
-    skipDefaultCheckout(true)     // <-- evita el checkout automático duplicado
+    skipDefaultCheckout(true)     // evita el checkout automático duplicado
     timestamps()
     ansiColor('xterm')
     disableConcurrentBuilds()
@@ -156,8 +156,14 @@ pipeline {
         )]) {
           sh '''
             set -euo pipefail
+            echo "==> Running terraform plan via Ansible..."
             ansible-playbook -i ansible/inventories/dev/hosts.ini ansible/playbooks/plan.yml
+
+            echo "==> Plan summary:"
             grep -n "Plan:" iac/envs/dev/plan.txt | head || true
+
+            echo "==> Files in iac/envs/dev:"
+            ls -lah iac/envs/dev || true
           '''
         }
       }
@@ -202,6 +208,10 @@ pipeline {
     always {
       archiveArtifacts artifacts: 'cicd/reports/checkov/results.xml', allowEmptyArchive: true
       archiveArtifacts artifacts: 'iac/envs/dev/plan.txt', allowEmptyArchive: true
+
+      archiveArtifacts artifacts: 'iac/envs/dev/*.tfplan', allowEmptyArchive: true
+      archiveArtifacts artifacts: 'iac/envs/dev/*.plan', allowEmptyArchive: true
+
       archiveArtifacts artifacts: 'iac/lambda_artifacts/*.zip', allowEmptyArchive: true
       archiveArtifacts artifacts: 'frontend/sonar-project.properties', allowEmptyArchive: true
     }
