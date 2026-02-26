@@ -12,6 +12,9 @@
   command: terraform init -input=false -reconfigure -backend-config=backend.hcl
   args:
     chdir: "{{ tf_working_dir }}"
+  environment:
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "0"
 
 # Ojo: state list puede fallar si el state aún no existe (rc=1).
 # Lo dejamos "soft" para que no rompa el pipeline en ambientes nuevos.
@@ -21,6 +24,10 @@
     chdir: "{{ tf_working_dir }}"
   register: state_list
   failed_when: false
+  changed_when: false
+  environment:
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "0"
 
 - name: Show state list
   debug:
@@ -35,6 +42,9 @@
   register: tf_plan
   failed_when: tf_plan.rc not in [0, 2]
   changed_when: tf_plan.rc == 2
+  environment:
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "0"
 
 - name: Set fact if plan has changes
   set_fact:
@@ -45,6 +55,11 @@
   args:
     chdir: "{{ tf_working_dir }}"
   register: plan_out
+  failed_when: plan_out.rc != 0
+  changed_when: false
+  environment:
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "0"
 
 - name: Write plan.txt
   copy:
