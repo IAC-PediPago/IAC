@@ -82,18 +82,36 @@ output "payments_secret_name" {
   value = module.secrets_manager.payments_secret_name
 }
 
-output "orders_lambda_arn" {
-  value = module.compute.orders_lambda_arn
+############################
+# Lambdas (separadas por endpoint)
+############################
+output "orders_create_lambda_arn" {
+  value = module.compute.orders_create_lambda_arn
 }
 
-output "payments_lambda_arn" {
-  value = module.compute.payments_lambda_arn
+output "orders_get_lambda_arn" {
+  value = module.compute.orders_get_lambda_arn
 }
 
-output "products_lambda_arn" {
-  value = module.compute.products_lambda_arn
+output "orders_update_status_lambda_arn" {
+  value = module.compute.orders_update_status_lambda_arn
 }
 
+output "payments_create_lambda_arn" {
+  value = module.compute.payments_create_lambda_arn
+}
+
+output "payments_webhook_lambda_arn" {
+  value = module.compute.payments_webhook_lambda_arn
+}
+
+output "products_list_lambda_arn" {
+  value = module.compute.products_list_lambda_arn
+}
+
+############################
+# Workers
+############################
 output "notifications_worker_lambda_arn" {
   value = module.compute.notifications_worker_lambda_arn
 }
