@@ -1,4 +1,4 @@
-# Root del repo
+ # Root del repo
 repo_root: "{{ playbook_dir }}/../.."
 
 # Terraform env dir
@@ -20,4 +20,4 @@ checkov_soft_fail: false
 
 # Tests (Node)
 run_tests: true
-lambdas_dir: "{{ repo_root }}/iac/lambdas"
+lambdas_dir: "{{ repo_root }}/iac/lambdas" 

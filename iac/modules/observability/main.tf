@@ -8,7 +8,7 @@ resource "aws_cloudwatch_log_group" "lambda" {
 
   # opcional: si no quieres que se borren por destroy accidental
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   tags = var.tags
@@ -25,7 +25,7 @@ resource "aws_cloudwatch_log_group" "api_access" {
   retention_in_days = var.log_retention_days
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   tags = var.tags

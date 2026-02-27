@@ -88,7 +88,6 @@ resource "aws_iam_role" "inventory_worker" {
 # Policies (least privilege)
 ############################
 
-# Orders Create: PutItem + SNS Publish
 data "aws_iam_policy_document" "orders_create_policy" {
   statement {
     effect    = "Allow"
@@ -102,7 +101,6 @@ data "aws_iam_policy_document" "orders_create_policy" {
   }
 }
 
-# Orders Get: GetItem
 data "aws_iam_policy_document" "orders_get_policy" {
   statement {
     effect    = "Allow"
@@ -111,7 +109,6 @@ data "aws_iam_policy_document" "orders_get_policy" {
   }
 }
 
-# Orders Update Status: UpdateItem + SNS Publish
 data "aws_iam_policy_document" "orders_update_status_policy" {
   statement {
     effect    = "Allow"
@@ -125,7 +122,6 @@ data "aws_iam_policy_document" "orders_update_status_policy" {
   }
 }
 
-# Payments Create: PutItem + SNS Publish + SecretsManager
 data "aws_iam_policy_document" "payments_create_policy" {
   statement {
     effect    = "Allow"
@@ -144,16 +140,6 @@ data "aws_iam_policy_document" "payments_create_policy" {
   }
 }
 
-# Payments Webhook: solo logs (si luego publicas PAYMENT_CONFIRMED, aquí agregas sns:Publish)
-data "aws_iam_policy_document" "payments_webhook_policy" {
-  statement {
-    effect    = "Allow"
-    actions   = []
-    resources = []
-  }
-}
-
-# Products List: Scan/Query/GetItem
 data "aws_iam_policy_document" "products_list_policy" {
   statement {
     effect = "Allow"
@@ -166,7 +152,6 @@ data "aws_iam_policy_document" "products_list_policy" {
   }
 }
 
-# Notifications Worker: SQS consume
 data "aws_iam_policy_document" "notifications_worker_policy" {
   statement {
     effect = "Allow"
@@ -180,7 +165,6 @@ data "aws_iam_policy_document" "notifications_worker_policy" {
   }
 }
 
-# Inventory Worker: SQS consume + DynamoDB read Orders
 data "aws_iam_policy_document" "inventory_worker_policy" {
   statement {
     effect = "Allow"
@@ -242,13 +226,10 @@ resource "aws_iam_role_policy" "payments_create_inline" {
   policy = data.aws_iam_policy_document.payments_create_policy.json
 }
 
+# ✅ Webhook: SOLO logs (NO inline policy vacía)
 resource "aws_iam_role_policy" "payments_webhook_logs" {
   role   = aws_iam_role.payments_webhook.id
   policy = data.aws_iam_policy_document.lambda_logs.json
-}
-resource "aws_iam_role_policy" "payments_webhook_inline" {
-  role   = aws_iam_role.payments_webhook.id
-  policy = data.aws_iam_policy_document.payments_webhook_policy.json
 }
 
 resource "aws_iam_role_policy" "products_list_logs" {
@@ -531,6 +512,8 @@ resource "aws_apigatewayv2_integration" "orders_create" {
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.orders_create.arn
   payload_format_version = "2.0"
+
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_apigatewayv2_integration" "orders_get" {
@@ -538,6 +521,8 @@ resource "aws_apigatewayv2_integration" "orders_get" {
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.orders_get.arn
   payload_format_version = "2.0"
+
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_apigatewayv2_integration" "orders_update_status" {
@@ -545,6 +530,8 @@ resource "aws_apigatewayv2_integration" "orders_update_status" {
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.orders_update_status.arn
   payload_format_version = "2.0"
+
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_apigatewayv2_integration" "payments_create" {
@@ -552,6 +539,8 @@ resource "aws_apigatewayv2_integration" "payments_create" {
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.payments_create.arn
   payload_format_version = "2.0"
+
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_apigatewayv2_integration" "payments_webhook" {
@@ -559,6 +548,8 @@ resource "aws_apigatewayv2_integration" "payments_webhook" {
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.payments_webhook.arn
   payload_format_version = "2.0"
+
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_apigatewayv2_integration" "products_list" {
@@ -566,6 +557,8 @@ resource "aws_apigatewayv2_integration" "products_list" {
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.products_list.arn
   payload_format_version = "2.0"
+
+  lifecycle { create_before_destroy = true }
 }
 
 ############################
@@ -577,6 +570,9 @@ resource "aws_apigatewayv2_route" "orders_post" {
   target             = "integrations/${aws_apigatewayv2_integration.orders_create.id}"
   authorization_type = "JWT"
   authorizer_id      = var.authorizer_id
+
+  depends_on = [aws_apigatewayv2_integration.orders_create]
+  lifecycle  { create_before_destroy = true }
 }
 
 resource "aws_apigatewayv2_route" "orders_get" {
@@ -585,6 +581,9 @@ resource "aws_apigatewayv2_route" "orders_get" {
   target             = "integrations/${aws_apigatewayv2_integration.orders_get.id}"
   authorization_type = "JWT"
   authorizer_id      = var.authorizer_id
+
+  depends_on = [aws_apigatewayv2_integration.orders_get]
+  lifecycle  { create_before_destroy = true }
 }
 
 resource "aws_apigatewayv2_route" "orders_status_put" {
@@ -593,6 +592,9 @@ resource "aws_apigatewayv2_route" "orders_status_put" {
   target             = "integrations/${aws_apigatewayv2_integration.orders_update_status.id}"
   authorization_type = "JWT"
   authorizer_id      = var.authorizer_id
+
+  depends_on = [aws_apigatewayv2_integration.orders_update_status]
+  lifecycle  { create_before_destroy = true }
 }
 
 resource "aws_apigatewayv2_route" "payments_post" {
@@ -601,6 +603,9 @@ resource "aws_apigatewayv2_route" "payments_post" {
   target             = "integrations/${aws_apigatewayv2_integration.payments_create.id}"
   authorization_type = "JWT"
   authorizer_id      = var.authorizer_id
+
+  depends_on = [aws_apigatewayv2_integration.payments_create]
+  lifecycle  { create_before_destroy = true }
 }
 
 resource "aws_apigatewayv2_route" "payments_webhook_post" {
@@ -608,6 +613,9 @@ resource "aws_apigatewayv2_route" "payments_webhook_post" {
   route_key          = "POST /payments/webhook"
   target             = "integrations/${aws_apigatewayv2_integration.payments_webhook.id}"
   authorization_type = "NONE"
+
+  depends_on = [aws_apigatewayv2_integration.payments_webhook]
+  lifecycle  { create_before_destroy = true }
 }
 
 resource "aws_apigatewayv2_route" "products_get" {
@@ -616,6 +624,9 @@ resource "aws_apigatewayv2_route" "products_get" {
   target             = "integrations/${aws_apigatewayv2_integration.products_list.id}"
   authorization_type = "JWT"
   authorizer_id      = var.authorizer_id
+
+  depends_on = [aws_apigatewayv2_integration.products_list]
+  lifecycle  { create_before_destroy = true }
 }
 
 ############################
@@ -673,17 +684,17 @@ resource "aws_lambda_permission" "products_list_invoke" {
 # SQS -> Lambda mappings (Workers)
 ############################
 resource "aws_lambda_event_source_mapping" "notifications" {
-  event_source_arn = var.notifications_queue_arn
-  function_name    = aws_lambda_function.notifications_worker.arn
-  batch_size       = 10
-  enabled          = true
-  function_response_types = ["ReportBatchItemFailures"]
+  event_source_arn         = var.notifications_queue_arn
+  function_name            = aws_lambda_function.notifications_worker.arn
+  batch_size               = 10
+  enabled                  = true
+  function_response_types  = ["ReportBatchItemFailures"]
 }
 
 resource "aws_lambda_event_source_mapping" "inventory" {
-  event_source_arn = var.inventory_queue_arn
-  function_name    = aws_lambda_function.inventory_worker.arn
-  batch_size       = 10
-  enabled          = true
-  function_response_types = ["ReportBatchItemFailures"]
+  event_source_arn         = var.inventory_queue_arn
+  function_name            = aws_lambda_function.inventory_worker.arn
+  batch_size               = 10
+  enabled                  = true
+  function_response_types  = ["ReportBatchItemFailures"]
 }
