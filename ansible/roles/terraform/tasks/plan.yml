@@ -12,121 +12,28 @@
   command: terraform init -input=false -reconfigure -backend-config=backend.hcl
   args:
     chdir: "{{ tf_working_dir }}"
-  environment:
-    TF_IN_AUTOMATION: "true"
-    TF_INPUT: "0"
 
-# soft
 - name: Terraform state list (sanity check)
   command: terraform state list
   args:
     chdir: "{{ tf_working_dir }}"
   register: state_list
-  failed_when: false
-  changed_when: false
-  environment:
-    TF_IN_AUTOMATION: "true"
-    TF_INPUT: "0"
 
-- name: Show state list
-  debug:
+- debug:
     var: state_list.stdout_lines
 
-# ✅ Normalizar nombres (porque tus defaults traen path completo)
-- name: Normalize plan output paths
-  set_fact:
-    tf_plan_file_rel: "{{ tf_plan_file | basename }}"
-    tf_plan_txt_rel: "{{ tf_plan_txt | basename }}"
-    tf_plan_file_abs: "{{ tf_working_dir }}/{{ tf_plan_file | basename }}"
-    tf_plan_txt_abs: "{{ tf_working_dir }}/{{ tf_plan_txt | basename }}"
-
-# ✅ Mostrar rutas reales para que salga en consola SIEMPRE
-- name: Debug plan paths
-  debug:
-    msg: >-
-      tf_working_dir={{ tf_working_dir }}
-      tf_plan_file={{ tf_plan_file }}
-      tf_plan_file_abs={{ tf_plan_file_abs }}
-      tf_plan_txt_abs={{ tf_plan_txt_abs }}
-
-# ✅ Plan (acepta rc 0 y 2)
-- name: Terraform plan (binary) - allow detailed exit codes
-  command: terraform plan -input=false -detailed-exitcode -out "{{ tf_plan_file_rel }}"
+- name: Terraform plan (binary)
+  command: terraform plan -input=false -out "{{ tf_plan_file }}"
   args:
     chdir: "{{ tf_working_dir }}"
-  register: tf_plan
-  failed_when: tf_plan.rc not in [0, 2]
-  changed_when: tf_plan.rc == 2
-  environment:
-    TF_IN_AUTOMATION: "true"
-    TF_INPUT: "0"
 
-- name: Set fact if plan has changes
-  set_fact:
-    tf_plan_has_changes: "{{ tf_plan.rc == 2 }}"
-
-# ✅ Listar archivos del working dir después del plan (clave)
-- name: List files in tf_working_dir
-  command: ls -lah
-  args:
-    chdir: "{{ tf_working_dir }}"
-  register: ls_out
-  changed_when: false
-  failed_when: false
-
-- name: Show files in tf_working_dir
-  debug:
-    var: ls_out.stdout_lines
-
-# ✅ Verificar que el tfplan exista
-- name: Check plan file exists
-  stat:
-    path: "{{ tf_plan_file_abs }}"
-  register: plan_stat
-
-# ✅ Si no existe, dejamos evidencia en un archivo debug y fallamos con mensaje claro
-- name: Write debug file (paths + ls)
-  copy:
-    dest: "{{ tf_working_dir }}/plan_debug.txt"
-    content: |
-      tf_working_dir={{ tf_working_dir }}
-      tf_plan_file={{ tf_plan_file }}
-      tf_plan_file_abs={{ tf_plan_file_abs }}
-      tf_plan_txt_abs={{ tf_plan_txt_abs }}
-
-      == ls -lah (tf_working_dir) ==
-      {{ ls_out.stdout }}
-
-      == plan_stat ==
-      exists={{ plan_stat.stat.exists | default(false) }}
-      path={{ tf_plan_file_abs }}
-
-- name: Fail if plan file was not generated
-  fail:
-    msg: >-
-      Plan file NOT generated: {{ tf_plan_file_abs }}.
-      Revisa plan_debug.txt en {{ tf_working_dir }} (se archivará si lo agregas en Jenkins).
-  when: not plan_stat.stat.exists
-
-# ✅ Show del plan
 - name: Terraform show (human-readable)
-  command: terraform show -no-color "{{ tf_plan_file_rel }}"
+  command: terraform show -no-color "{{ tf_plan_file }}"
   args:
     chdir: "{{ tf_working_dir }}"
   register: plan_out
-  failed_when: plan_out.rc != 0
-  changed_when: false
-  environment:
-    TF_IN_AUTOMATION: "true"
-    TF_INPUT: "0"
 
 - name: Write plan.txt
   copy:
     content: "{{ plan_out.stdout }}"
-    dest: "{{ tf_plan_txt_abs }}"
-
-- name: Plan summary
-  debug:
-    msg: >-
-      Terraform plan finished. Changes detected={{ tf_plan_has_changes }}
-      (rc={{ tf_plan.rc }}). Plan saved to {{ tf_plan_txt_abs }}.
+    dest: "{{ tf_plan_txt }}"

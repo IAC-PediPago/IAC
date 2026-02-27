@@ -29,14 +29,12 @@ resource "aws_cognito_user_pool_client" "app" {
   supported_identity_providers  = ["COGNITO"]
   prevent_user_existence_errors = "ENABLED"
 
-  # Mantiene tu login actual (email+password / SRP)
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
     "ALLOW_USER_SRP_AUTH"
   ]
 
-  # (Opcional) si luego quieres frontend con flows OAuth; no rompe login directo
   allowed_oauth_flows_user_pool_client = false
 }
 
@@ -47,13 +45,12 @@ resource "aws_apigatewayv2_api" "http_api" {
   name          = "${var.name_prefix}-http-api"
   protocol_type = "HTTP"
 
-  # CORS (en dev puede ser abierto; en prod conviene restringir)
   cors_configuration {
-    allow_origins = ["*"]
-    allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-    allow_headers = ["content-type", "authorization"]
+    allow_origins  = ["*"]
+    allow_methods  = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    allow_headers  = ["content-type", "authorization"]
     expose_headers = ["content-type"]
-    max_age = 3600
+    max_age        = 3600
   }
 
   tags = var.tags
@@ -73,6 +70,10 @@ resource "aws_apigatewayv2_stage" "default" {
       destination_arn = var.access_log_destination_arn
       format          = var.access_log_format
     }
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 
   tags = var.tags
@@ -95,5 +96,9 @@ resource "aws_apigatewayv2_authorizer" "jwt" {
   jwt_configuration {
     issuer   = local.issuer
     audience = [aws_cognito_user_pool_client.app.id]
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
