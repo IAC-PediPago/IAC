@@ -208,4 +208,3 @@ aws logs tail "/aws/apigateway/pedidos-pagos-dev-http-api-access" --region us-ea
 - **Tiempos de respuesta (objetivo)**  
   - **API (HTTP API + Lambda):** p95 < 400–700 ms en rutas típicas
   - **Checkout / pago:** p95 < 1.5–3 s (porque depende del proveedor externo)
-
