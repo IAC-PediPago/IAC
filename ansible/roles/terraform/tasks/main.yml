@@ -1,0 +1,3 @@
+- name: Run terraform action
+  include_tasks: "{{ terraform_action }}.yml"
+  when: terraform_action is defined

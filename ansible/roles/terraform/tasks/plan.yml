@@ -1,0 +1,63 @@
+- name: Write backend.hcl (remote state)
+  copy:
+    dest: "{{ tf_working_dir }}/backend.hcl"
+    content: |
+      bucket         = "{{ tf_backend_bucket }}"
+      key            = "{{ tf_backend_key }}"
+      region         = "{{ tf_backend_region }}"
+      dynamodb_table = "{{ tf_backend_dynamodb_table }}"
+      encrypt        = {{ tf_backend_encrypt | bool | lower }}
+
+- name: Terraform init (reconfigure backend)
+  command: terraform init -input=false -reconfigure -backend-config=backend.hcl
+  args:
+    chdir: "{{ tf_working_dir }}"
+  environment:
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "0"
+
+- name: Terraform state list (sanity check)
+  command: terraform state list
+  args:
+    chdir: "{{ tf_working_dir }}"
+  register: state_list
+  changed_when: false
+  environment:
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "0"
+
+- debug:
+    var: state_list.stdout_lines
+
+# Normaliza: si tf_plan_file es "tfplan" o "/abs/.../tfplan", esto funciona igual
+- name: Normalize plan paths
+  set_fact:
+    tf_plan_file_abs: >-
+      {{ tf_plan_file if (tf_plan_file is match('^/')) else (tf_working_dir ~ '/' ~ tf_plan_file) }}
+    tf_plan_file_rel: "{{ tf_plan_file | basename }}"
+    tf_plan_txt_abs: >-
+      {{ tf_plan_txt if (tf_plan_txt is match('^/')) else (tf_working_dir ~ '/' ~ tf_plan_txt) }}
+  changed_when: false
+
+- name: Terraform plan (binary)
+  command: terraform plan -input=false -out "{{ tf_plan_file_rel }}"
+  args:
+    chdir: "{{ tf_working_dir }}"
+  environment:
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "0"
+
+- name: Terraform show (human-readable)
+  command: terraform show -no-color "{{ tf_plan_file_rel }}"
+  args:
+    chdir: "{{ tf_working_dir }}"
+  register: plan_out
+  changed_when: false
+  environment:
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "0"
+
+- name: Write plan.txt
+  copy:
+    content: "{{ plan_out.stdout }}"
+    dest: "{{ tf_plan_txt_abs }}"

@@ -1,0 +1,53 @@
+---
+- name: SonarQube scan - Frontend
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    sonar_host_url: "{{ lookup('env', 'SONAR_HOST_URL') }}"
+    sonar_token: "{{ lookup('env', 'SONAR_TOKEN') }}"
+    sonar_project_key: "{{ lookup('env', 'SONAR_PROJECT_KEY') }}"
+    frontend_dir: "{{ playbook_dir }}/../../frontend"
+
+  tasks:
+    - name: Fail if SONAR vars missing
+      ansible.builtin.assert:
+        that:
+          - sonar_host_url | length > 0
+          - sonar_token | length > 0
+          - sonar_project_key | length > 0
+        fail_msg: "Faltan env vars: SONAR_HOST_URL / SONAR_TOKEN / SONAR_PROJECT_KEY"
+
+    - name: Verify frontend directory exists
+      ansible.builtin.stat:
+        path: "{{ frontend_dir }}"
+      register: fe
+
+    - name: Fail if frontend dir not found
+      ansible.builtin.fail:
+        msg: "No existe {{ frontend_dir }}"
+      when: not fe.stat.exists
+
+    - name: Run SonarScanner CLI container (Frontend)
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - -e
+          - "SONAR_HOST_URL={{ sonar_host_url }}"
+          - -e
+          - "SONAR_TOKEN={{ sonar_token }}"
+          - -v
+          - "{{ frontend_dir }}:/usr/src"
+          - sonarsource/sonar-scanner-cli
+          - --define
+          - "sonar.projectKey={{ sonar_project_key }}"
+          - --define
+          - "sonar.projectName=Proyecto PePa - Frontend"
+          - --define
+          - "sonar.sources=."
+          - --define
+          - "sonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/.vite/**,**/.next/**,**/coverage/**,**/*.min.js"
+      args:
+        chdir: "{{ frontend_dir }}"

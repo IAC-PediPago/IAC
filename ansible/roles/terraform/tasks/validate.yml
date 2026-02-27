@@ -1,0 +1,14 @@
+- name: Terraform init (no interactive)
+  command: terraform init -input=false
+  args:
+    chdir: "{{ tf_working_dir }}"
+
+- name: Terraform fmt check (recursive)
+  command: terraform fmt -recursive -check
+  args:
+    chdir: "{{ tf_working_dir }}"
+
+- name: Terraform validate
+  command: terraform validate
+  args:
+    chdir: "{{ tf_working_dir }}"

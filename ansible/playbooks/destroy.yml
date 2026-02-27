@@ -1,0 +1,9 @@
+- hosts: local
+  connection: local
+  gather_facts: false
+  roles:
+    - role: terraform
+      vars:
+        terraform_action: destroy
+        confirm_destroy: true
+        tf_auto_approve: "{{ tf_auto_approve | default(true) }}"
