@@ -12,18 +12,32 @@
   command: terraform init -input=false -reconfigure -backend-config=backend.hcl
   args:
     chdir: "{{ tf_working_dir }}"
+  environment:
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "0"
+
+- name: Normalize plan paths
+  set_fact:
+    tf_plan_file_abs: >-
+      {{ tf_plan_file if (tf_plan_file is match('^/')) else (tf_working_dir ~ '/' ~ tf_plan_file) }}
+    tf_plan_file_rel: "{{ tf_plan_file | basename }}"
+  changed_when: false
 
 - name: Ensure tfplan exists (run plan first)
   stat:
-    path: "{{ tf_plan_file }}"
+    path: "{{ tf_plan_file_abs }}"
   register: tfplan
+  changed_when: false
 
 - name: Fail if tfplan missing
   fail:
-    msg: "No existe {{ tf_plan_file }}. Ejecuta el playbook plan primero."
+    msg: "No existe {{ tf_plan_file_abs }}. Ejecuta el playbook plan primero."
   when: not tfplan.stat.exists
 
 - name: Terraform apply (from plan)
-  command: terraform apply -input=false {{ '-auto-approve' if tf_auto_approve else '' }} "{{ tf_plan_file }}"
+  command: terraform apply -input=false {{ '-auto-approve' if (tf_auto_approve | bool) else '' }} "{{ tf_plan_file_rel }}"
   args:
     chdir: "{{ tf_working_dir }}"
+  environment:
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "0"
